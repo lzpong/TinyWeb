@@ -12,8 +12,7 @@
 #include <string.h>
 #include <memory.h>
 
-//TinyWeb v3, a tiny web server based on libuv, by liigo, 2013-6-30.
-//TinyWeb v4, 增加与完善功能，by lzpong 2016/11/24
+//TinyWeb  增加与完善功能，by lzpong 2016/11/24
 
 uv_tcp_t    _server;
 
