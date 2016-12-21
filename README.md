@@ -34,7 +34,7 @@ auth lzpong 2016/11/24
 ```
 #include "tinyweb.h"
 ```
-2.give server configs ,include the callback func's
+2.set server configs ,and the callback func's
 ```
 //配置TinyWeb
 tw_config conf;
