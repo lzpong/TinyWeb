@@ -12,7 +12,7 @@
 #include <string.h>
 #include <memory.h>
 
-//TinyWeb  增加与完善功能，by lzpong 2016/11/24
+//TinyWeb 增加与完善功能，by lzpong 2016/11/24
 
 uv_tcp_t    _server;
 
@@ -35,7 +35,7 @@ static void after_uv_close_client(uv_handle_t* client) {
 		}
 	}
 	//清理
-	membuf_uninit(cliInfo); //see: tinyweb_on_connection()
+	membuf_uninit(cliInfo); //see: tw_on_connection()
 	free(client->data); //membuf_t*: request buffer
 	free(client);
 }
@@ -215,21 +215,10 @@ const char* tw_get_content_type(const char* fileExt) {
 //处理客户端请求
 //invoked by tinyweb when GET request comes in
 //please invoke write_uv_data() once and only once on every request, to send respone to client and close the connection.
-//if not handle this request (by invoking write_uv_data()), you can close connection using tinyweb_close_client(client).
+//if not handle this request (by invoking write_uv_data()), you can close connection using tw_close_client(client).
 //pathinfo: "/" or "/book/view/1"
 //query_stirng: the string after '?' in url, such as "id=0&value=123", maybe NULL or ""
 static void tw_request(uv_stream_t* client, reqHeads heads) {
-	//若全部回调,则不会访问本地文件
-	if (tw_conf.awasy_callback)
-	{
-		//http请求回调:所有请求全部回调
-		if (tw_conf.on_request && tw_conf.on_request(client, heads))
-			return;
-		else {
-			tw_404_not_found(client, heads.path);
-			return;
-		}
-	}
 	char fullpath[260];//绝对路径（末尾不带斜杠）
 	sprintf(fullpath, "%s%s", tw_conf.doc_dir, (heads.path[0] == '/' ? heads.path + 1 : heads.path));
 	//去掉末尾的斜杠
@@ -267,7 +256,7 @@ static void tw_request(uv_stream_t* client, reqHeads heads) {
 			tw_301_Moved(client, heads);
 			break;
 		}
-		char tmp[260];		tmp[0] = 0;
+		char tmp[260]; tmp[0] = 0;
 		char *s = strdup(tw_conf.doc_index);
 		p = strtok(s, ";");
 		//是否有默认主页
@@ -294,11 +283,12 @@ static void tw_request(uv_stream_t* client, reqHeads heads) {
 			char *p = "Welcome to TinyWeb.<br>Directory access forbidden.";
 			if (tw_conf.dirlist) {
 				p = listDir(fullpath, heads.path);
-#ifdef _MSC_VER //Windows下需要转换编码 //linux 下，系统是和源代码文件编码都是是utf8的，就不需要转换
+#ifdef _MSC_VER //Windows下需要转换编码
 				unsigned int len = strlen(p);
 				char* p2 = GB2U8(p, &len);
 				free(p);
 				p = p2;
+				//linux 下，系统是和源代码文件编码都是是utf8的，就不需要转换
 #endif // _MSC_VER
 			}
 			char *respone = tw_format_http_respone("200 OK", "text/html", p, -1, NULL);
@@ -386,7 +376,7 @@ static char* tw_get_http_heads(const uv_buf_t* buf, reqHeads* heads) {
 }
 
 //(循环)读取客户端发送的数据,接收客户的数据
-static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
+static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
 	unsigned long Len = buf->len, len;
 	char *gb;
 	if (nread > 0) {
@@ -406,10 +396,9 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 				membuf_init(&hd->buf, 128);
 			hd->buf.flag = cliInfo->flag;
 			//
-			long leftlen=WebSocketGetData(hd, buf->base, Len);
+			uint64_t leftlen=WebSocketGetData(hd, buf->base, Len);
 			if (hd->isEof)
 			{
-				char wspong[2] = {*buf->base+1,0};
 				char wsclose[2] = { (char)0x88,0 };
 				switch (hd->type) {
 				case 0: //0x0表示附加数据帧
@@ -418,7 +407,6 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 #ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
 					len = hd->buf.size;
 					gb = U82GB(hd->buf.data, &len);
-					//printHex(gb, len);
 					free(hd->buf.data);
 					hd->buf.data = gb;
 					hd->buf.buffer_size=hd->buf.size = len;
@@ -451,7 +439,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 					break;
 				case 9: //0x9表示ping
 				case 10://0xA表示pong
-				default://0xB - F暂时无定义，为以后的控制帧保留 * /
+				default://0xB - F暂时无定义，为以后的控制帧保留
 					*buf->base += 1;//发送pong
 					tw_send_data(client, buf->base, 2, 1, 0);
 					if (hd->buf.data)
@@ -490,7 +478,12 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 				free(p2);
 			}
 			else if (heads.method) { //HTTP
-				tw_request(client, heads);
+				//所有请求全部回调
+				if (tw_conf.all_http_callback && tw_conf.on_request && !tw_conf.on_request(client, heads)){
+						tw_404_not_found(client, heads.path);
+				}
+				else
+					tw_request(client, heads);
 			}
 			else { //SOCKET
 				cliInfo->flag |= 1;//long-link
@@ -503,14 +496,14 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 			}
 		}
 	}
-	else if (nread <= 0) {//在任何情况下出错, read 回调函数 nread 参数都为 -1，如：出错原因可能是 EOF(遇到文件尾)
+	else if (nread <= 0) {//在任何情况下出错, read 回调函数 nread 参数都<0，如：出错原因可能是 EOF(遇到文件尾)
 		membuf_t mbuf;
 		char p2[20] = { 0 };
-		sprintf(p2,"err(%d):\0",nread);
+		sprintf(p2,"%d:\0",nread);
 		membuf_init(&mbuf, 128);
 		membuf_append_data(&mbuf,p2,strlen(p2));
 
-		char* p= uv_err_name(nread);
+		const char* p= uv_err_name(nread);
 		membuf_append_data(&mbuf, p,strlen(p));
 
 		p= uv_strerror(nread);
@@ -561,7 +554,7 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 		uv_read_start((uv_stream_t*)client, on_uv_alloc, on_uv_read);
 		//客户端接入回调
 		if (tw_conf.on_connect)
-			tw_conf.on_connect(client);
+			tw_conf.on_connect((uv_stream_t*)client);
 	}
 }
 

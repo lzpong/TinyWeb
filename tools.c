@@ -47,8 +47,8 @@ void membuf_init(membuf_t* buf, unsigned int initial_buffer_size) {
 //释放buffer
 void membuf_uninit(membuf_t* buf) {
 	if (buf->data)
-		free(buf->data), buf->data = NULL;
-	memset(buf, 0, sizeof(membuf_t) - sizeof(char));
+		free(buf->data);
+	memset(buf, 0, sizeof(membuf_t));
 }
 //清除数据（数据覆盖为NULL），并缩小buffer大小
 void membuf_clear(membuf_t* buf, unsigned int maxSize)
@@ -91,8 +91,19 @@ void membuf_reserve(membuf_t* buf, unsigned int extra_size) {
 		buf->buffer_size = new_buffer_size;
 	}
 }
+//截断(释放)多余的内存
+void membuf_trunc(membuf_t* buf) {
+	if (buf->buffer_size > (buf->size + 1)) {
+		unsigned char* p = (unsigned char*)realloc(buf->data, buf->size + 1); // realloc new buffer
+		//防止realloc分配失败，或返回的地址一样
+		assert(p);
+		if (p && p != buf->data)
+			buf->data = p;
+		buf->buffer_size = buf->size + 1;
+	}
+}
 //添加数据
-unsigned int membuf_append_data(membuf_t* buf, void* data, unsigned int size) {
+unsigned int membuf_append_data(membuf_t* buf, const void* data, unsigned int size) {
 	assert(data && size > 0);
 	membuf_reserve(buf, size);
 	char* c=memmove(buf->data + buf->size, data, size);
@@ -161,7 +172,7 @@ inline WIN32_FIND_DATA GetFileInfo(const char* lpPath)
 	return fd;
 }
 
-//路径是否存在(2：存在:文件夹  1：存在:文件  0：不存在)
+//路径是否存在(0：不存在  1：存在:文件  2：存在:文件夹)
 char isExist(const char* path)
 {
 	WIN32_FIND_DATA fd = GetFileInfo(path);
@@ -250,7 +261,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 		"}\r\n</script>\0\0", fnum);
 	//window下需要转换为UTF8编码，以发送给客户端
 	membuf_append_data(&buf,tmp,strlen(tmp));
-	buf.data[buf.size] = 0;
+	membuf_trunc(&buf);
 	return (char*)buf.data;
 }
 
@@ -283,7 +294,7 @@ char* getProcPath()
 	return CurPath;
 }
 
-//路径是否存在(2：存在:文件夹  1：存在:文件  0：不存在)
+//路径是否存在(0：不存在  1：存在:文件  2：存在:文件夹)
 char isExist(const char* path)
 {
 	if (path && access(path, F_OK) == 0)
@@ -376,7 +387,7 @@ char* listDir(const char* fullpath, const char* pathinfo)
 		"document.querySelector(\"tbody\").innerHTML = html;"
 		"}\r\n</script>\0\0", fnum);
 	membuf_append_data(&buf, tmp, strlen(tmp));
-	buf.data[buf.size] = 0;
+	membuf_trunc(&buf);
 	return (char*)buf.data;
 }
 #endif
@@ -581,36 +592,33 @@ unsigned int UTF8ToUCS2(const unsigned char* binUTF8, unsigned int uCount, unsig
 #pragma region url编码解码
 
 //url编码 (len为buf的长度)
-size_t url_encode(const char *url, char *buf, size_t len)
+char* url_encode(const char *url, size_t* len)
 {
-	if (!buf || !url)
-		return 0;
-
+	if (!url)
+		return NULL;
+	membuf_t buf;
 	const char *p;
 	size_t x = 0;
 	const char urlunsafe[] = "\r\n \"#%&+:;<=>?@[\\]^`{|}";
 	const char hex[] = "0123456789ABCDEF";
+	char enc[3] = {'%',0,0};
 	len--;
-
+	membuf_init(&buf, strlen(url)+1);
 	for (p = url; *p; p++) {
-		if (x >= len)
+		if ((p - url) > *len)
 			break;
-
 		if (*p < ' ' || *p > '~' || strchr(urlunsafe, *p)) {
-			if ((x + 3) >= len)
-				break;
-
-			buf[x++] = '%';
-			buf[x++] = hex[*p >> 4];
-			buf[x++] = hex[*p & 0x0f];
+			enc[1] = hex[*p >> 4];
+			enc[2] = hex[*p & 0x0f];
+			membuf_append_data(&buf, enc, 3);
 		}
 		else {
-			buf[x++] = *p;
+			membuf_append_data(&buf,p,1);
 		}
 	}
-	buf[x] = '\0';
-
-	return x;
+	membuf_trunc(&buf);
+	*len = buf.size;
+	return (char*)buf.data;
 }
 
 //url解码
@@ -1066,7 +1074,7 @@ static void WebSocketDoMask(char* data, unsigned long len, char* mask)
 }
 
 //从帧中取得实际数据
-long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned long len)
+unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned long len)
 {
 	if (!handle || !data) return 0;
 	handle->isEof = (char)(data[0] >> 7);//是否结束
@@ -1127,12 +1135,9 @@ long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned long len)
 	}
 	else if (Len == 127)//如果值是127，则后面8个字节形成的64位无符号整型数(unsigned int64)的值是payload的真实长度，掩码就紧更着后面
 	{
-		//u8 u; memcpy(u.c, &data[2], 8);
-		//Len = ntohll(u.n);//网络字节转换
-		//u_int64 ui64 = data[2]*0x100000000000000ULL+data[3]*0x1000000000000ULL+data[4]*0x10000000000ULL+data[5]*0x100000000ULL
-		//				+data[6]*0x1000000ULL+data[7]*0x10000ULL+data[8]*0x100ULL+data[9]*0x1ULL;//逐字节转换
 		Len = data[2] * 0x100000000000000ULL + data[3] * 0x1000000000000ULL + data[4] * 0x10000000000ULL + data[5] * 0x100000000ULL
 				+data[6]*0x1000000ULL+data[7]*0x10000ULL+data[8]*0x100ULL+data[9]*0x1ULL;//逐字节转换
+		//Len = data[6] * 0x1000000ULL + data[7] * 0x10000ULL + data[8] * 0x100ULL + data[9] * 0x1ULL;//逐字节转换为unsigned int
 		if (hasMask)
 		{
 			if ((len - 14)>0)//防止结尾帧数据不够长度的错误
@@ -1154,60 +1159,51 @@ long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned long len)
 	}
 	return Len;
 }
-//转换为一个WebSocket帧
-char* WebSocketMakeFrame(const char* data, unsigned int dlen, char* framedata, unsigned int* flen)
+//转换为一个WebSocket帧,无mask
+char* WebSocketMakeFrame(const char* data, unsigned int* dlen)
 {
-	char bMask = 0;
-	char Mask[4] = { 0 };
 	if (data == NULL)
-		return *flen = 0;
+		return NULL;
+	membuf_t buf;
+	membuf_init(&buf, 129);
 	//第一byte,10000000, fin = 1, rsv1 rsv2 rsv3均为0, opcode = 0x01,即数据为文本帧
-	framedata[0] = 129;//0x81 最后一个包 |(无扩展协议)| 控制码(0x1表示文本帧)
-	char len;
-	unsigned int pos = 0;//newData使用了几位(newData[pos])
-	if (dlen <= 125)
+	buf.data[0] = 0x81;//0x81 最后一个包 |(无扩展协议)| 控制码(0x1表示文本帧)
+	unsigned char len;
+	if (*dlen <= 125)
 	{
-		len = dlen;
+		len = (unsigned char)*dlen;
 		//数据长度
-		framedata[1] = (bMask ? 0x80 : 0x00) | dlen;
-		pos = 2;
+		buf.data[1] = (unsigned char)*dlen;
+		buf.size = 2;
 	}
-	else if (dlen <= 65535)
+	else if (*dlen <= 65535)
 	{
 		len = 126;
-		framedata[1] = (bMask ? 0x80 : 0x00) | 0x7E;
+		buf.data[1] = 0x7E;
 		//数据长度
-		framedata[2] = (dlen >> 8) & 255;
-		framedata[3] = (dlen) & 255;
-		pos = 4;
+		buf.data[2] = (*dlen >> 8) & 255;
+		buf.data[3] = (*dlen) & 255;
+		buf.size = 4;
 	}
 	else
 	{
 		len = 127;
-		framedata[1] = (bMask ? 0x80 : 0x00) | 0x7F;
+		buf.data[1] = 0x7F;
 		//数据长度
-		framedata[2] = (dlen >> 56) & 255;
-		framedata[3] = (dlen >> 48) & 255;
-		framedata[4] = (dlen >> 40) & 255;
-		framedata[5] = (dlen >> 32) & 255;
-		framedata[6] = (dlen >> 24) & 255;
-		framedata[7] = (dlen >> 16) & 255;
-		framedata[8] = (dlen >> 8) & 255;
-		framedata[9] = (dlen) & 255;
-		pos = 10;
+		buf.data[2] = (*dlen >> 56) & 255;
+		buf.data[3] = (*dlen >> 48) & 255;
+		buf.data[4] = (*dlen >> 40) & 255;
+		buf.data[5] = (*dlen >> 32) & 255;
+		buf.data[6] = (*dlen >> 24) & 255;
+		buf.data[7] = (*dlen >> 16) & 255;
+		buf.data[8] = (*dlen >> 8) & 255;
+		buf.data[9] = (*dlen) & 255;
+		buf.size = 10;
 	}
-	//是否有掩码
-	if (bMask)
-	{
-		memcpy(framedata + pos, Mask, 4);
-		pos += 4;
-		for (unsigned int i = pos; i<dlen; i++)
-			framedata[i] = data[i] ^ Mask[i % 4];
-	}
-	else
-		memcpy(framedata + pos, data, dlen);
-	flen = pos + dlen;
-	return framedata;
+	membuf_append_data(&buf, data, *dlen);
+	*dlen = buf.size;
+	membuf_trunc(&buf);
+	return (char*)buf.data;
 }
 
 #pragma endregion
@@ -1299,7 +1295,7 @@ inline unsigned int GetDaySecond()
 #endif // _MSC_VER
 
 //字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
-inline long long str2stmp(const char *strTime)
+inline time_t str2stmp(const char *strTime)
 {
 	struct tm sTime;
 	if (strTime != NULL)
@@ -1385,7 +1381,6 @@ const char* GetIPv4()
 const char* GetIPv6()
 {
 	static char CurIP[50] = { 0 };
-
 	return CurIP;
 }
 

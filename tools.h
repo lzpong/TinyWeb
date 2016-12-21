@@ -6,12 +6,13 @@
 extern "C" {
 #endif
 
+
 //-----------------------------------------------------------------------------------membuf c-str  win/unix
 
-typedef struct {
+typedef struct membuf_t {
 	unsigned char* data;
-	unsigned int   size;
-	unsigned int   buffer_size;
+	unsigned long   size;
+	unsigned long   buffer_size;
 	unsigned char  flag;//标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket)   lzp 2016/11/28
 } membuf_t;
 //初始化
@@ -19,7 +20,7 @@ void membuf_init(membuf_t* buf, unsigned int initial_buffer_size);
 //释放buffer
 void membuf_uninit(membuf_t* buf);
 //添加数据
-unsigned int membuf_append_data(membuf_t* buf, void* data, unsigned int size);
+unsigned int membuf_append_data(membuf_t* buf, const void* data, unsigned int size);
 //插入数据：offset位置，data数据，size数据大小
 void membuf_insert(membuf_t* buf, unsigned int offset, void* data, unsigned int size);
 //从末尾移除数据（不会填充为NULL，仅更改size）
@@ -28,6 +29,45 @@ void membuf_remove(membuf_t* buf, unsigned int offset, unsigned int size);
 void membuf_clear(membuf_t* buf, unsigned int maxSize);
 //扩展buffer大小
 void membuf_reserve(membuf_t* buf, unsigned int extra_size);
+//截断(释放)多余的内存
+void membuf_trunc(membuf_t* buf);
+
+#if defined(_MSC_VER)
+#define _INLINE static _inline
+#else
+#define _INLINE static inline
+#endif
+
+_INLINE unsigned int membuf_append_byte(membuf_t* buf, unsigned char b) {
+	return membuf_append_data(buf, &b, sizeof(b));
+}
+_INLINE unsigned int membuf_append_int(membuf_t* buf, int i) {
+	return membuf_append_data(buf, &i, sizeof(i));
+}
+_INLINE unsigned int membuf_append_uint(membuf_t* buf, unsigned int ui) {
+	return membuf_append_data(buf, &ui, sizeof(ui));
+}
+_INLINE unsigned int membuf_append_long(membuf_t* buf, long i) {
+	return membuf_append_data(buf, &i, sizeof(i));
+}
+_INLINE unsigned int membuf_append_ulong(membuf_t* buf, unsigned long ui) {
+	return membuf_append_data(buf, &ui, sizeof(ui));
+}
+_INLINE unsigned int membuf_append_short(membuf_t* buf, short s) {
+	return membuf_append_data(buf, &s, sizeof(s));
+}
+_INLINE unsigned int membuf_append_ushort(membuf_t* buf, unsigned short us) {
+	return membuf_append_data(buf, &us, sizeof(us));
+}
+_INLINE unsigned int membuf_append_float(membuf_t* buf, float f) {
+	return membuf_append_data(buf, &f, sizeof(f));
+}
+_INLINE unsigned int membuf_append_double(membuf_t* buf, double d) {
+	return membuf_append_data(buf, &d, sizeof(d));
+}
+_INLINE unsigned int membuf_append_ptr(membuf_t* buf, void* ptr) {
+	return membuf_append_data(buf, &ptr, sizeof(ptr));
+}
 
 //-----------------------------------------------------------------------------------文件/文件夹检测  win/unix
 
@@ -36,7 +76,7 @@ char* getWorkPath();
 //获取程序文件所在路径,不带'/'
 char* getProcPath();
 
-//路径是否存在(2：存在:文件夹  1：存在:文件  0：不存在)
+//路径是否存在(0：不存在  1：存在:文件  2：存在:文件夹)
 char isExist(const char* path);
 //是否文件(1:是文件  0:非文件/不存在)
 char isFile(const char* path);
@@ -49,27 +89,27 @@ char* listDir(const char* fullpath, const char* reqPath);
 //-----------------------------------------------------------------------------------编码转换  win/unix
 
 #ifdef _MSC_VER
-//GB2312 to unicode(need free) 返回字串长度为：实际长度+1, 末尾\0占一字节（需要释放）
+//GB2312 to unicode(need free return) 返回字串长度为：实际长度+2, 末尾\0\0占一字节（需要释放）
 wchar_t* GB2U(char* pszGbs, size_t* wLen);
-//unicode to utf8(need free) 返回字串长度为：实际长度+1, 末尾\0占一字节（需要释放）
+//unicode to utf8(need free return) 返回字串长度为：实际长度+1, 末尾\0占一字节（需要释放）
 char* U2U8(wchar_t* wszUnicode, size_t* aLen);
-//utf8 to unicode(need free) 返回字串长度为：实际长度+1, 末尾\0占一字节（需要释放）
+//utf8 to unicode(need free return) 返回字串长度为：实际长度+2, 末尾\0\0占一字节（需要释放）
 wchar_t* U82U(char* szU8, size_t* wLen);
-//unicode to GB2312(need free) 返回字串长度为：实际长度+1, 末尾\0占一字节（需要释放）
+//unicode to GB2312(need free return) 返回字串长度为：实际长度+1, 末尾\0占一字节（需要释放）
 char* U2GB(wchar_t* wszUnicode, size_t* aLen);
 #else
-//GB2312 to unicode(need free) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+//GB2312 to unicode(need free return) 返回字串长度为：实际长度+2,返回长度小于0为：失败, 末尾\0\0占一字节（需要释放）
 char* GB2U(char* pszGbs, size_t* aLen);
-//unicode to utf8(need free) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+//unicode to utf8(need free return) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
 char* U2U8(char* wszUnicode, size_t* aLen);
-//utf8 to unicode(need free) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+//utf8 to unicode(need free return) 返回字串长度为：实际长度+2,返回长度小于0为：失败, 末尾\0\0占一字节（需要释放）
 char* U82U(char* szU8, size_t* aaLen);
-//unicode to GB2312(need free) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+//unicode to GB2312(need free return) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
 char* U2GB(char* wszUnicode, size_t* aLen);
 #endif
-//GB2312 to utf8(need free) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+//GB2312 to utf8(need free return) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
 char* GB2U8(char* pszGbs, size_t* aLen);
-//utf8 to GB2312(need free) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+//utf8 to GB2312(need free return) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
 char* U82GB(char* szU8, size_t* aLen);
 
 //-----------------------------------------------------------------------------------Base64编码解码  win/unix
@@ -82,7 +122,7 @@ char* base64_Decode(char* const encoded_string);
 //-----------------------------------------------------------------------------------Hash1加密  win/unix
 
 typedef unsigned int uint;
-typedef struct {
+typedef struct SHA1_CONTEXT {
 	char bFinal:1;//是否计算完成
 	uint  h0, h1, h2, h3, h4;
 	uint  nblocks;
@@ -107,8 +147,8 @@ unsigned char* hash1_Get(SHA1_CONTEXT* hd);
 
 //-----------------------------------------------------------------------------------url编码解码  win/unix
 
-//url编码 (len为buf的长度)
-size_t url_encode(const char *url, char *buf, size_t len);
+//url编码 (len为url的长度)
+char* url_encode(const char *url, size_t* len);
 //url解码
 char* url_decode(char *url);
 
@@ -116,11 +156,11 @@ char* url_decode(char *url);
 
 //WebSocket以文本传输的时候，都为UTF - 8编码，是WebSocket协议允许的唯一编码
 //服务端收数据用
-typedef struct {
+typedef struct WebSocketHandle {
 	membuf_t buf;//原始帧数据
 //data[0]
 	unsigned char isEof:1;//是否是结束帧 data[0]>>7
-	unsigned char dfExt:4;//是否有扩展定义 data[0] & 0x70
+	unsigned char dfExt:3;//是否有扩展定义 (data[0]>>4) & 0x7
 	/*帧类型 type 的定义data[0] & 0xF
 	0x0表示附加数据帧
 	0x1表示文本数据帧
@@ -136,10 +176,10 @@ typedef struct {
 //传入http头,返回WebSocket握手Key,非http升级ws则返回NULL
 //需要释放返回值(need free return)
 char* WebSocketHandShak(const char* key);
-//从帧中取得实际数据 (返回有多少字节未处理)
-long WebSocketGetData(WebSocketHandle* handle,char* data, unsigned long len);
-//转换为一个WebSocket帧
-char* WebSocketMakeFrame(const char* data, unsigned int len,char* framedata, unsigned int* flen);
+//从帧中取得实际数据 (帧不应超过32位大小)
+unsigned long WebSocketGetData(WebSocketHandle* handle,char* data, unsigned long len);
+//转换为一个WebSocket帧,无mask
+char* WebSocketMakeFrame(const char* data, unsigned int* len);
 
 //-----------------------------------------------------------------------------------工具函数/杂项  win/unix
 
@@ -150,7 +190,7 @@ const char* GetIPv6();
 
 
 
-typedef struct {
+typedef struct tm_u {
 	int tm_sec;     /*秒 seconds after the minute - [0,59] */
 	int tm_min;     /*分 minutes after the hour - [0,59] */
 	int tm_hour;    /*时 hours since midnight - [0,23] */
@@ -160,16 +200,16 @@ typedef struct {
 	int tm_wday;    /*星期 days since Sunday - [0,6 0:周日] */
 	int tm_yday;    /*年中的天数 days since January 1 - [0,365] */
 	int tm_isdst;   /*夏令时标志 daylight savings time flag */
-	long long tm_vsec; /*时间戳 seconds from 1900/1/1 0:0:0 */
+	time_t tm_vsec; /*时间戳 seconds from 1900/1/1 0:0:0 */
 	int tm_usec;    /*微妙 microseconds */
 } tm_u;
 
 //获取当前时间信息
 tm_u GetLocaTime();
 //获取当天已逝去的秒数
-inline unsigned int GetDaySecond();
+inline size_t GetDaySecond();
 //字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
-inline long long str2stmp(const char *strTime);
+inline time_t str2stmp(const char *strTime);
 //时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
 inline char* stmp2str(time_t t, char* str, int strlen);
 

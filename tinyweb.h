@@ -68,22 +68,32 @@ typedef struct {
 
 //服务配置
 typedef struct {
-	char dirlist:1;//是否列出目录
-	char awasy_callback:1;//是否全部http访问都回调,若全部回调则不会访问本地文件
-	const char* doc_dir;//Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')
-	const char* doc_index;//默认主页，逗号分隔
-	const char* ip;//服务的IP地址
-	int port;      //服务监听端口
+	char dirlist:1; //是否允许列出目录
+	char all_http_callback:1;//是否全部http访问都回调,http update to websocket 除外
+	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
+	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
+	char* ip;       //服务的IP地址
+	short port;     //服务监听端口
+
 	//客户端接入
 	char (*on_connect)(uv_stream_t* client);
+
 	//404前回调(未找到请求的文件/文件夹时回调,此功能便于程序返回自定义功能)
-	//返回0表示没有适合的处理请求，将自动发送404响应；否则认为已经处理  (heads及其成员不需要free)
+	//返回0表示没有适合的处理请求，将自动发送404响应；否则认为已经处理
+	//heads成员不需要free
 	char (*on_request)(uv_stream_t* client, reqHeads heads);
-	//Socket 或 WebSocket 数据  (不要更改buf->flag和buf->buffer_size)
+
+	//Socket 或 WebSocket 数据, 可以通过buf->flag判断
+	//buf成员不需要free
 	char (*on_data)(uv_stream_t* client, membuf_t* buf);
-	//Socket 检测到错误(此时链接可能已经断开)  错误消息格式："err(%d):%s,%s,%s"
-	char (*on_error)(uv_stream_t* client,int errno, membuf_t* buf);
-	//Socket 关闭(此时链接可能已经断开)  flag:标志字节 ([0~7]: [0]是否需要保持连接<非长连接为http> [1]是否WebSocket)
+
+	//Socket 检测到错误(此时链接可能已经断开)
+	//buf成员不需要free
+	//错误消息格式："%d:%s,%s,%s"
+	char (*on_error)(uv_stream_t* client,int errcode, membuf_t* buf);
+
+	//Socket 关闭(此时链接可能已经断开)
+	//flag:标志字节 ([0~7]: [0]是否需要保持连接<非长连接为http> [1]是否WebSocket
 	char (*on_close)(uv_stream_t* client, int flag);
 } tw_config;
 
