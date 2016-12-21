@@ -2,30 +2,56 @@
 auth [lzpong]
 A tiny web server based on libuv, can accept Socket,WebSocket,or http protocol,and callBack func's
 ```
-TinyWeb¹¦ÄÜËµÃ÷
+TinyWebåŠŸèƒ½è¯´æ˜
 
 auth lzpong 2016/11/24
-¹¦ÄÜ»ùÓÚ libuv ¿çÆ½Ì¨¿â
+åŠŸèƒ½åŸºäº libuv è·¨å¹³å°åº“
 
-0.Ä¬ÈÏ±àÂëÎª utf-8
-1.Ö§³ÖÊ¹ÓÃGET/POST·½Ê½
-2.Ö§³Ö·µ»Ø404´íÎóÒ³Ãæ
-3.Ö§³ÖÖ¸¶¨¸ùÄ¿Â¼£¨Ä¬ÈÏ³ÌĞòËùÔÚÄ¿Â¼£©
-4.Ö§³ÖÈÎÒâ¸ñÊ½ÎÄ¼ş·ÃÎÊ(´øÀ©Õ¹Ãû,Ğ¡ÎÄ¼şÏÂÔØ)
-	a.Ö§³Ö¾²Ì¬ÍøÒ³·ÃÎÊ£ºhtml/htm
-	b.Ö§³ÖÆäËû¾²Ì¬ÎÄ¼ş£ºjs,css,png,jpeg/jpg,gif,ico,txt,xml,json,log,wam,wav,mp3,apk
-	c.Ö§³ÖÆäËû¸ñÊ½ÎÄ¼ş,Ä¬ÈÏÎÄ¼şÀàĞÍÎª£º"application/octet-stream"
-	d.Ö§³Ö²»´øÀ©Õ¹ÃûÎÄ¼ş·ÃÎÊ
-5.Ö§³ÖÄ¬ÈÏindexÒ³Ãæ(index.html/index.html)£¬¿ÉÒÔ×Ô¶¨ÒåÉèÖÃ
-6.Ö§³ÖÄ¿Â¼ÁĞ±í
-7.Ö§³ÖSocket, WebSocket
-8.Ö§³Ö»Øµ÷
-	a.404Ç°»Øµ÷£¨Î´ÕÒµ½Ò³Ãæ/ÎÄ¼şÊ±»Øµ÷,´Ë¹¦ÄÜ±ãÓÚ³ÌĞò·µ»Ø×Ô¶¨Òå¹¦ÄÜ£©
-	b.WebSocket Êı¾İ»Øµ÷
-	c.socket Êı¾İ»Øµ÷
+0.é»˜è®¤ç¼–ç ä¸º utf-8
+1.æ”¯æŒä½¿ç”¨GET/POSTæ–¹å¼
+2.æ”¯æŒè¿”å›404é”™è¯¯é¡µé¢
+3.æ”¯æŒæŒ‡å®šæ ¹ç›®å½•ï¼ˆé»˜è®¤ç¨‹åºæ‰€åœ¨ç›®å½•ï¼‰
+4.æ”¯æŒä»»æ„æ ¼å¼æ–‡ä»¶è®¿é—®(å¸¦æ‰©å±•å,å°æ–‡ä»¶ä¸‹è½½)
+	a.æ”¯æŒé™æ€ç½‘é¡µè®¿é—®ï¼šhtml/htm
+	b.æ”¯æŒå…¶ä»–é™æ€æ–‡ä»¶ï¼šjs,css,png,jpeg/jpg,gif,ico,txt,xml,json,log,wam,wav,mp3,apk
+	c.æ”¯æŒå…¶ä»–æ ¼å¼æ–‡ä»¶,é»˜è®¤æ–‡ä»¶ç±»å‹ä¸ºï¼š"application/octet-stream"
+	d.æ”¯æŒä¸å¸¦æ‰©å±•åæ–‡ä»¶è®¿é—®
+5.æ”¯æŒé»˜è®¤indexé¡µé¢(index.html/index.html)ï¼Œå¯ä»¥è‡ªå®šä¹‰è®¾ç½®
+6.æ”¯æŒç›®å½•åˆ—è¡¨
+7.æ”¯æŒSocket, WebSocket
+8.æ”¯æŒå›è°ƒ
+	a.404å‰å›è°ƒï¼ˆæœªæ‰¾åˆ°é¡µé¢/æ–‡ä»¶æ—¶å›è°ƒ,æ­¤åŠŸèƒ½ä¾¿äºç¨‹åºè¿”å›è‡ªå®šä¹‰åŠŸèƒ½ï¼‰
+	b.WebSocket æ•°æ®å›è°ƒ
+	c.socket æ•°æ®å›è°ƒ
 
 ==============future
-1.Ö§³Öcookie/session
-2.Ö§³ÖÈÏÖ¤
-3.Ö§³Ö´óÎÄ¼şÏìÓ¦£¨ÏÂÔØ£©
+1.æ”¯æŒcookie/session
+2.æ”¯æŒè®¤è¯
+3.æ”¯æŒå¤§æ–‡ä»¶å“åº”ï¼ˆä¸‹è½½ï¼‰
+```
+#use age.
+1.include the head file
+```
+#include "tinyweb.h"
+```
+2.give server configs ,include the callback func's
+```
+//é…ç½®TinyWeb
+tw_config conf;
+memset(&conf, 0, sizeof(conf));
+conf.dirlist = 1;//æ˜¯å¦å…è®¸æŸ¥çœ‹ç›®å½•åˆ—è¡¨
+//conf.ip = NULL;//ç›‘å¬IP,é»˜è®¤"0.0.0.0";
+conf.port = 8080;//ç›‘å¬ç«¯å£
+//conf.doc_index = NULL;//é»˜è®¤ä¸»é¡µ
+//é…ç½®å›è°ƒå‡½æ•°
+conf.on_request = on_request;
+conf.on_data = on_socket_read_data;
+```
+other congfig items see `struct tw_config` in tinyweb.h
+
+3.start server
+```
+//å¯åŠ¨TinyWeb
+tinyweb_start(uv_default_loop(), &conf);
+uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 ```
