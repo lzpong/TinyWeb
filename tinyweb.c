@@ -18,18 +18,7 @@ uv_tcp_t    _server;
 
 tw_config tw_conf;
 
-//打印16进制 (最多128字符)
-//void printHex(const char* str, long len)
-//{
-//	int i;
-//	len = len < 128 ? len : 128;
-//	for (i = 0; i < len; i++) {
-//		if(i>0 && i%16==0)
-//			printf("\n");
-//		printf("%02x ", (char)str[i]&0xff);
-//	}
-//	printf("\n\n");
-//}
+
 //=================================================
 
 
@@ -334,7 +323,6 @@ static char* tw_get_http_heads(const uv_buf_t* buf, reqHeads* heads) {
 	if (data) {
 		*data = 0;
 		heads->data = data + 4;
-		//printf("\n----Tinyweb client request: ----\n%s\n", buf->base);
 		//是否有 Sec-WebSocket-Key
 		key = strstr(buf->base, "Sec-WebSocket-Key:");
 		if (key) {
@@ -384,7 +372,6 @@ static char* tw_get_http_heads(const uv_buf_t* buf, reqHeads* heads) {
 			heads->host = strstr(end + 4, "Host:");
 			if (heads->host) {
 				heads->host += 5;
-				//heads->host = strchr(heads->host+5, ' ');
 				while (isspace(*heads->host)) heads->host++;
 				end = strchr(heads->host, '\r');
 				if (end) *end = 0;
@@ -403,7 +390,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 	unsigned long Len = buf->len, len;
 	char *gb;
 	if (nread > 0) {
-		membuf_t* cliInfo = (membuf_t*)client->data; //see tinyweb_on_connection()
+		membuf_t* cliInfo = (membuf_t*)client->data; //see tw_on_connection()
 		assert(cliInfo);
 		//得到实际数据长度
 		while (buf->base[Len-1] == 0) --Len;
@@ -419,7 +406,6 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 				membuf_init(&hd->buf, 128);
 			hd->buf.flag = cliInfo->flag;
 			//
-			//printHex(buf->base, Len);
 			long leftlen=WebSocketGetData(hd, buf->base, Len);
 			if (hd->isEof)
 			{
@@ -429,7 +415,6 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 				case 0: //0x0表示附加数据帧
 					break;
 				case 1: //0x1表示文本数据帧
-					//printHex(hd->buf.data, hd->buf.size);
 #ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
 					len = hd->buf.size;
 					gb = U82GB(hd->buf.data, &len);
@@ -442,17 +427,11 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 					//接收数据回调
 					if (tw_conf.on_data)
 						tw_conf.on_data(client, &hd->buf);
-					/*if (hd->buf.data)
-						free(hd->buf.data);
-					memset(hd, 0, sizeof(WebSocketHandle));*/
 					break;
 				case 2: //0x2表示二进制数据帧
 					//接收数据回调
 					if (tw_conf.on_data)
 						tw_conf.on_data(client, &hd->buf);
-					/*if (hd->buf.data)
-						free(hd->buf.data);
-					memset(hd, 0, sizeof(WebSocketHandle));*/
 					break;
 				case 3: //0x3 - 7暂时无定义，为以后的非控制帧保留
 				case 4:
@@ -484,7 +463,6 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 				if (cliInfo->data) {
 					hd->dfExt = hd->isEof = hd->type = 0;
 					membuf_uninit(&hd->buf);
-					//membuf_clear(&hd->buf, 1024);
 				}
 			}
 			else
@@ -508,7 +486,6 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 			if (p) { //WebSocket 握手
 				cliInfo->flag |= 3;//long-link & WebSocket
 				p2=WebSocketHandShak(p);
-				//printf(p2);
 				tw_send_data(client, p2, -1, 1, 0);
 				free(p2);
 			}
@@ -563,7 +540,6 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, uv_buf_t* buf) {
 
 //为每次读取数据分配内存缓存
 static void on_uv_alloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-	//*buf = uv_buf_init((char*)malloc(suggested_size), suggested_size);
 	buf->base = (char*)calloc(1,suggested_size);
 	buf->len = suggested_size;
 }
@@ -643,7 +619,7 @@ void tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 	uv_tcp_bind(&_server, (const struct sockaddr*) &addr, 0);
 	uv_listen((uv_stream_t*)&_server, 8, tw_on_connection);
 
-	printf("TinyWeb v4 is started, listening port %s:%d...\n", tw_conf.ip , tw_conf.port);
+	printf("TinyWeb v1.0.0 is started, listening port %s:%d...\n", tw_conf.ip , tw_conf.port);
 	printf("Please access http://%s:%d or http://localhost:%d from you web browser.\n", tw_conf.ip , tw_conf.port, tw_conf.port);
 }
 
