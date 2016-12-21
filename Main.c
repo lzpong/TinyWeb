@@ -92,9 +92,7 @@ int main(int argc, char** argv)
 	conf.dirlist = 0;//目录列表
 	//conf.ip = NULL;// "127.0.0.1";
 	conf.port = 8080;
-	//conf.doc_root = NULL;
-	//conf.doc_root = "E:\\Projects\\C++\\Lzp_Library\\Test\\tinyweb\\WWWRoot";
-	//conf.doc_root = "I:\\WWWRoot\\CMS\\EmpireCMS_7.2_SC_UTF8";
+	//conf.doc_dir = NULL;
 	if (argc > 1)
 		conf.doc_dir = argv[1];
 	conf.doc_index = NULL;//默认主页
