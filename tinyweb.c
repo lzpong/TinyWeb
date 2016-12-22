@@ -171,15 +171,22 @@ static char tw_http_send_file(uv_stream_t* client, const char* content_type, con
 
 //根据扩展名(不区分大小写)，返回文件类型 content_type
 const char* tw_get_content_type(const char* fileExt) {
+	const static char* octet = "application/octet-stream";
 	if (fileExt)
 	{
-		const char* p = strrchr(fileExt, '\\');
-		if (p == NULL) p = strrchr(fileExt, '/');
+		const char* p = strrchr(fileExt, '.');
 		if (p)
 		{
-			fileExt = strrchr(fileExt, '.');
-			if (fileExt[0] == '.') fileExt++;
+			const char* p2 = strrchr(fileExt, '\\');
+			if (p2 == NULL) p2 = strrchr(fileExt, '/');
+			if (p2 && p2 < p) {
+				fileExt = p;
+			}
+			else
+				return octet;
 		}
+		else
+			return octet;
 	}
 	if (strcmpi(fileExt, "htm") == 0 || strcmpi(fileExt, "html") == 0)
 		return "text/html";
@@ -210,7 +217,7 @@ const char* tw_get_content_type(const char* fileExt) {
 	else if (strcmpi(fileExt, "apk") == 0)
 		return "application/vnd.android.package-archive";
 	else
-		return "application/octet-stream";
+		return octet;
 }
 
 //处理客户端请求
