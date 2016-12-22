@@ -26,7 +26,7 @@
 
 #endif
 
-#include "Tools.h"
+#include "tools.h"
 
 #if TinyWeb_Function_Description //TinyWeb功能说明
 
