@@ -116,7 +116,7 @@ void tinyweb_stop(uv_loop_t** loop);
 //content_length：can be -1 if content is c_str (end with NULL)
 //respone_size：if not NULL,可以获取发送的数据长度 the size of respone will be writen to request
 //returns malloc()ed c_str, need free() by caller
-char* tw_format_http_respone(const char* status, const char* content_type, const void* content, int content_length, int* respone_size);
+char* tw_format_http_respone(const char* status, const char* content_type, const char* content, int content_length, int* respone_size);
 
 //根据扩展名返回文件类型 content_type
 //可以传入路径/文件名/扩展名

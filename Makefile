@@ -2,8 +2,8 @@ PWD=$(shell pwd)
 
 INCS=
 LIBEDIT_DIR=
-DEBUG=-g -ggdb -lpthread
-BASE_FLAGS=$(INCS) $(DEBUG) $(LIBEDIT_DIR) #-fPIC
+DEBUG=-g -ggdb
+BASE_FLAGS=$(INCS) $(DEBUG) $(LIBEDIT_DIR) -lrt -lpthread #-fPIC
 LDFLAGS=-L.
 
 CC_CFLAGS=$(BASE_FLAGS) #-Wl,-rpath=/usr/local/lib/
@@ -22,7 +22,7 @@ CXX=g++
 all: tinyweb
 
 
-tinyweb: tools.o Tools.o tinyweb.o Main.o  libuv.a
+tinyweb: tools.o tinyweb.o Main.o  libuv.a
 	$(CC) $(CC_CFLAGS) -o tinyweb Main.o tinyweb.o tools.o  libuv.a
 
 

@@ -1056,7 +1056,7 @@ char* WebSocketHandShak(const char* key)
 	//else
 	//	return NULL;
 }
-
+/*
 typedef union  {
 	unsigned short n;
 	unsigned char c[2];
@@ -1065,7 +1065,7 @@ typedef union  {
 	unsigned long long n;
 	unsigned char c[8];
 }u8;
-
+*/
 static void WebSocketDoMask(char* data, unsigned long len, char* mask)
 {
 	unsigned long i = 0;
@@ -1111,8 +1111,9 @@ unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned lon
 	}
 	else if (Len == 126)//如果值是126，则后面2个字节形成的16位无符号整型数(unsigned short)的值是payload的真实长度，掩码就紧更着后面
 	{
-		u2 u; memcpy(u.c, &data[2], 2);
-		Len = ntohs(u.n);//网络字节转换
+		//u2 u; memcpy(u.c, &data[2], 2);
+		//Len = ntohs(u.n);//网络字节转换
+		Len = data[2]*0x100UL+data[3]*0x1UL;//逐字节转换
 
 		if (hasMask)
 		{
@@ -1135,9 +1136,9 @@ unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned lon
 	}
 	else if (Len == 127)//如果值是127，则后面8个字节形成的64位无符号整型数(unsigned int64)的值是payload的真实长度，掩码就紧更着后面
 	{
-		Len = data[2] * 0x100000000000000ULL + data[3] * 0x1000000000000ULL + data[4] * 0x10000000000ULL + data[5] * 0x100000000ULL
-				+data[6]*0x1000000ULL+data[7]*0x10000ULL+data[8]*0x100ULL+data[9]*0x1ULL;//逐字节转换
-		//Len = data[6] * 0x1000000ULL + data[7] * 0x10000ULL + data[8] * 0x100ULL + data[9] * 0x1ULL;//逐字节转换为unsigned int
+		//Len = data[2] * 0x100000000000000ULL + data[3] * 0x1000000000000ULL + data[4] * 0x10000000000ULL + data[5] * 0x100000000ULL
+		//		+data[6]*0x1000000ULL+data[7]*0x10000ULL+data[8]*0x100ULL+data[9]*0x1ULL;//逐字节转换
+		Len = data[6] * 0x1000000ULL + data[7] * 0x10000ULL + data[8] * 0x100ULL + data[9] * 0x1ULL;//逐字节转换为unsigned long
 		if (hasMask)
 		{
 			if ((len - 14)>0)//防止结尾帧数据不够长度的错误
@@ -1189,11 +1190,11 @@ char* WebSocketMakeFrame(const char* data, unsigned int* dlen)
 	{
 		len = 127;
 		buf.data[1] = 0x7F;
-		//数据长度
-		buf.data[2] = (*dlen >> 56) & 255;
-		buf.data[3] = (*dlen >> 48) & 255;
-		buf.data[4] = (*dlen >> 40) & 255;
-		buf.data[5] = (*dlen >> 32) & 255;
+		//数据长度,前4字节留空,保存32位数据大小
+		//buf.data[2] = (*dlen >> 56) & 255;
+		//buf.data[3] = (*dlen >> 48) & 255;
+		//buf.data[4] = (*dlen >> 40) & 255;
+		//buf.data[5] = (*dlen >> 32) & 255;
 		buf.data[6] = (*dlen >> 24) & 255;
 		buf.data[7] = (*dlen >> 16) & 255;
 		buf.data[8] = (*dlen >> 8) & 255;
@@ -1253,7 +1254,7 @@ tm_u GetLocaTime()
 	return tmu;
 }
 //获取当天已逝去的秒数
-inline unsigned int GetDaySecond()
+inline size_t GetDaySecond()
 {
 	SYSTEMTIME st;
 	GetLocalTime(&st);
@@ -1285,7 +1286,7 @@ tm_u GetLocaTime()
 	return tmu;
 }
 //获取当天已逝去的秒数
-inline unsigned int GetDaySecond()
+inline size_t GetDaySecond()
 {
 	struct timeval  tv;
 	gettimeofday(&tv, NULL);

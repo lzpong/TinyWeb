@@ -106,11 +106,11 @@ void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u
 //content_length: can be -1 if content is c_str (end with NULL)
 //respone_size: if not NULL,可以获取发送的数据长度 the size of respone will be writen to request
 //returns malloc()ed c_str, need free() by caller
-char* tw_format_http_respone(const char* status, const char* content_type, const void* content, int content_length, int* respone_size) {
+char* tw_format_http_respone(const char* status, const char* content_type, const char* content, int content_length, int* respone_size) {
 	int totalsize, header_size;
 	char* respone;
 	if (content_length < 0)
-		content_length = content ? strlen((char*)content) : 0;
+		content_length = content ? strlen(content) : 0;
 	totalsize = strlen(status) + strlen(content_type) + content_length + 128;
 	respone = (char*)malloc(totalsize);
 	header_size = sprintf(respone, "HTTP/1.1 %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=utf-8\r\nContent-Length:%d\r\n\r\n",
@@ -503,20 +503,20 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 		membuf_init(&mbuf, 128);
 		membuf_append_data(&mbuf,p2,strlen(p2));
 
-		const char* p= uv_err_name(nread);
+		const char* p= uv_err_name((int)nread);
 		membuf_append_data(&mbuf, p,strlen(p));
 
-		p= uv_strerror(nread);
+		p= uv_strerror((int)nread);
 		membuf_append_data(&mbuf, ",",1);
 		membuf_append_data(&mbuf, p, strlen(p));
 
-		FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-			FORMAT_MESSAGE_IGNORE_INSERTS, NULL, nread,
-			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&p, 0, NULL);
-		if (p) {
-			membuf_append_data(&mbuf, ",",1);
-			membuf_append_data(&mbuf, p, strlen(p));
-		}
+		//FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+		//	FORMAT_MESSAGE_IGNORE_INSERTS, NULL, nread,
+		//	MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&p, 0, NULL);
+		//if (p) {
+		//	membuf_append_data(&mbuf, ",",1);
+		//	membuf_append_data(&mbuf, p, strlen(p));
+		//}
 		//出错信息回调
 		if (tw_conf.on_error)
 			tw_conf.on_error(client, nread, &mbuf);
