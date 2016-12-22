@@ -1,5 +1,5 @@
 # TinyWeb v1.0.0
-auth [lzpong]
+auth [lzpong](https://github.com/lzpong)  
 A tiny web server based on libuv, can accept Socket,WebSocket,or http protocol,and callBack func's
 ```
 TinyWeb功能说明
@@ -29,7 +29,7 @@ auth lzpong 2016/11/24
 2.支持认证
 3.支持大文件响应（下载）
 ```
-#use age.
+#Use age.
 1.include the head file
 ```
 #include "tinyweb.h"
