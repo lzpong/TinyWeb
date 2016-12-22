@@ -23,7 +23,9 @@ all: tinyweb
 
 
 tinyweb: tools.o tinyweb.o Main.o  libuv.a
-	$(CC) $(CC_CFLAGS) -o tinyweb Main.o tinyweb.o tools.o  libuv.a
+	$(CC) $(CC_CFLAGS) $(CFLAGS) -o tinyweb Main.o tinyweb.o tools.o  libuv.a
+	@echo make tinyweb done.
+
 
 
 libuv.a:

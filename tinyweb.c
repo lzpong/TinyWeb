@@ -144,7 +144,8 @@ static void tw_301_Moved(uv_stream_t* client, reqHeads heads) {
 
 //发送文件到客户端
 static char tw_http_send_file(uv_stream_t* client, const char* content_type, const char* file, const char* reqPath) {
-	size_t file_size, read_bytes, respone_size;
+	size_t file_size, read_bytes;
+	int respone_size;
 	char *file_data, *respone;
 	FILE* fp = fopen(file, "rb");
 	if (fp) {
