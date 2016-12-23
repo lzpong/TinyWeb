@@ -53,7 +53,7 @@ void membuf_uninit(membuf_t* buf) {
 //清除数据（数据覆盖为NULL），并缩小buffer大小
 void membuf_clear(membuf_t* buf, unsigned int maxSize)
 {
-	if (buf->data)
+	if (buf->data && buf->size)
 	{
 		if (maxSize>1 && buf->buffer_size > maxSize)
 		{

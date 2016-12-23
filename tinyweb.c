@@ -153,8 +153,9 @@ static char tw_http_send_file(uv_stream_t* client, const char* content_type, con
 		file_size = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
 		file_data = (char*)malloc(file_size);
-		read_bytes = fread(file_data, file_size, 1, fp);
-		assert(read_bytes == file_size);
+		//read_bytes = fread(file_data, file_size, 1, fp);//linux fread 返回1,而不是读取的数量
+		fread(file_data, file_size, 1, fp);
+		//assert(read_bytes == file_size);
 		fclose(fp);
 
 		respone_size = 0;
@@ -174,19 +175,16 @@ const char* tw_get_content_type(const char* fileExt) {
 	const static char* octet = "application/octet-stream";
 	if (fileExt)
 	{
-		const char* p = strrchr(fileExt, '.');
-		if (p)
+		// txt    /aaa/txt    /txt   aaa.txt     /aaa/aa.txt
+		const char* p2 = strrchr(fileExt, '\\');
+		if (p2 == NULL) p2 = strrchr(fileExt, '/');
+		if (p2)
 		{
-			const char* p2 = strrchr(fileExt, '\\');
-			if (p2 == NULL) p2 = strrchr(fileExt, '/');
-			if (p2 && p2 < p) {
+			const char* p = strrchr(fileExt, '.');
+			if (p) { //"/a/txt"
 				fileExt = p;
 			}
-			else
-				return octet;
 		}
-		else
-			return octet;
 	}
 	if (strcmpi(fileExt, "htm") == 0 || strcmpi(fileExt, "html") == 0)
 		return "text/html";
@@ -208,6 +206,8 @@ const char* tw_get_content_type(const char* fileExt) {
 		return "image/x-icon";
 	else if (strcmpi(fileExt, "xml") == 0)
 		return "application/xml";
+	else if (strcmpi(fileExt, "xhtml") == 0)
+		return "application/xhtml+xml";
 	else if (strcmpi(fileExt, "wav") == 0)
 		return "audio/wav";
 	else if (strcmpi(fileExt, "wma") == 0)
@@ -217,7 +217,7 @@ const char* tw_get_content_type(const char* fileExt) {
 	else if (strcmpi(fileExt, "apk") == 0)
 		return "application/vnd.android.package-archive";
 	else
-		return octet;
+		return "application/octet-stream";
 }
 
 //处理客户端请求
@@ -383,86 +383,89 @@ static char* tw_get_http_heads(const uv_buf_t* buf, reqHeads* heads) {
 	return NULL;
 }
 
+//on_read_WebSocket
+static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data, ULONG Len) {
+	ULONG len;
+	char *gb;
+	WebSocketHandle* hd;
+	if (cliInfo->data)
+		hd = (WebSocketHandle*)cliInfo->data;
+	else {
+		hd = (WebSocketHandle*)calloc(1, sizeof(WebSocketHandle));
+	}
+	if (NULL == hd->buf.data)
+		membuf_init(&hd->buf, 128);
+	hd->buf.flag = cliInfo->flag;
+	//
+	ULONG leftlen = WebSocketGetData(hd, data, Len);
+	if (hd->isEof)
+	{
+		switch (hd->type) {
+		case 0: //0x0表示附加数据帧
+			break;
+		case 1: //0x1表示文本数据帧
+#ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
+			len = hd->buf.size;
+			gb = U82GB(hd->buf.data, &len);
+			free(hd->buf.data);
+			hd->buf.data = gb;
+			hd->buf.buffer_size = hd->buf.size = len;
+			//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
+#endif // _MSC_VER
+			//接收数据回调
+			if (tw_conf.on_data)
+				tw_conf.on_data(client, &hd->buf);
+			break;
+		case 2: //0x2表示二进制数据帧
+				//接收数据回调
+			if (tw_conf.on_data)
+				tw_conf.on_data(client, &hd->buf);
+			break;
+		case 3: case 4: case 5: case 6: case 7: //0x3 - 7暂时无定义，为以后的非控制帧保留			
+			if (hd->buf.data)
+				free(hd->buf.data);
+			memset(hd, 0, sizeof(WebSocketHandle));
+			break;
+		case 8: //0x8表示连接关闭
+			*(data + 1) = 0;//无数据
+			tw_send_data(client, data, 2, 1, 0);
+			if (hd->buf.data)
+				free(hd->buf.data);
+			free(hd);
+			cliInfo->data = NULL;
+			break;
+		case 9: //0x9表示ping
+		case 10://0xA表示pong
+		default://0xB - F暂时无定义，为以后的控制帧保留
+			*data += 1;//发送pong
+			*(data + 1) = 0;//无数据
+			tw_send_data(client, data, 2, 1, 0);
+			if (hd->buf.data)
+				free(hd->buf.data);
+			memset(hd, 0, sizeof(WebSocketHandle));
+			break;
+		}
+		//释放 membuf , 收到消息时再分配
+		if (cliInfo->data) {
+			hd->dfExt = hd->isEof = hd->type = 0;
+			membuf_uninit(&hd->buf);
+		}
+	}
+	else
+		cliInfo->data = (unsigned char*)hd;
+}
+
 //(循环)读取客户端发送的数据,接收客户的数据
 static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
-	unsigned long Len = buf->len, len;
-	char *gb;
+	ULONG Len = buf->len;
+	membuf_t* cliInfo = (membuf_t*)client->data; //see tw_on_connection()
 	if (nread > 0) {
-		membuf_t* cliInfo = (membuf_t*)client->data; //see tw_on_connection()
 		assert(cliInfo);
 		//得到实际数据长度
 		while (buf->base[Len-1] == 0) --Len;
 		//WebSocket
 		if (cliInfo->flag & 0x2) { //WebSocket
-			WebSocketHandle* hd;
-			if (cliInfo->data)
-				hd = (WebSocketHandle*)cliInfo->data;
-			else {
-				hd = (WebSocketHandle*)calloc(1, sizeof(WebSocketHandle));
-			}
-			if(NULL==hd->buf.data)
-				membuf_init(&hd->buf, 128);
-			hd->buf.flag = cliInfo->flag;
-			//
-			uint64_t leftlen=WebSocketGetData(hd, buf->base, Len);
-			if (hd->isEof)
-			{
-				char wsclose[2] = { (char)0x88,0 };
-				switch (hd->type) {
-				case 0: //0x0表示附加数据帧
-					break;
-				case 1: //0x1表示文本数据帧
-#ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
-					len = hd->buf.size;
-					gb = U82GB(hd->buf.data, &len);
-					free(hd->buf.data);
-					hd->buf.data = gb;
-					hd->buf.buffer_size=hd->buf.size = len;
-					//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
-#endif // _MSC_VER
-					//接收数据回调
-					if (tw_conf.on_data)
-						tw_conf.on_data(client, &hd->buf);
-					break;
-				case 2: //0x2表示二进制数据帧
-					//接收数据回调
-					if (tw_conf.on_data)
-						tw_conf.on_data(client, &hd->buf);
-					break;
-				case 3: //0x3 - 7暂时无定义，为以后的非控制帧保留
-				case 4:
-				case 5:
-				case 6:
-				case 7: 
-					if (hd->buf.data)
-						free(hd->buf.data);
-					memset(hd, 0, sizeof(WebSocketHandle));
-					break;
-				case 8: //0x8表示连接关闭
-					tw_send_data(client, wsclose, 2, 1, 0);
-					if (hd->buf.data)
-						free(hd->buf.data);
-					free(hd);
-					cliInfo->data = NULL;
-					break;
-				case 9: //0x9表示ping
-				case 10://0xA表示pong
-				default://0xB - F暂时无定义，为以后的控制帧保留
-					*buf->base += 1;//发送pong
-					tw_send_data(client, buf->base, 2, 1, 0);
-					if (hd->buf.data)
-						free(hd->buf.data);
-					memset(hd, 0, sizeof(WebSocketHandle));
-					break;
-				}
-				//释放 membuf , 收到消息时再分配
-				if (cliInfo->data) {
-					hd->dfExt = hd->isEof = hd->type = 0;
-					membuf_uninit(&hd->buf);
-				}
-			}
-			else
-				cliInfo->data = (unsigned char*)hd;
+			on_read_websocket(client, cliInfo, buf->base, Len);
 		}
 		//long-link
 		else if(cliInfo->flag & 0x1){ //long-link
@@ -505,34 +508,18 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 		}
 	}
 	else if (nread <= 0) {//在任何情况下出错, read 回调函数 nread 参数都<0，如：出错原因可能是 EOF(遇到文件尾)
-		membuf_t mbuf;
-		char p2[20] = { 0 };
-		sprintf(p2,"%d:\0",nread);
-		membuf_init(&mbuf, 128);
-		membuf_append_data(&mbuf,p2,strlen(p2));
-
-		const char* p= uv_err_name((int)nread);
-		membuf_append_data(&mbuf, p,strlen(p));
-
-		p= uv_strerror((int)nread);
-		membuf_append_data(&mbuf, ",",1);
-		membuf_append_data(&mbuf, p, strlen(p));
-
-		//FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-		//	FORMAT_MESSAGE_IGNORE_INSERTS, NULL, nread,
-		//	MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&p, 0, NULL);
-		//if (p) {
-		//	membuf_append_data(&mbuf, ",",1);
-		//	membuf_append_data(&mbuf, p, strlen(p));
-		//}
-		//出错信息回调
-		if (tw_conf.on_error)
-			tw_conf.on_error(client, nread, &mbuf);
-		else
-			fprintf(stderr, "%s\n", mbuf.data);
-		membuf_uninit(&mbuf);
-		//关闭连接
-		tw_close_client(client);
+		if (nread != UV_EOF) {
+			if (tw_conf.on_error) {
+				char errstr[60] = { 0 };
+				sprintf(errstr, "%d:%s,%s", nread, uv_err_name((int)nread), uv_strerror((int)nread));
+				//出错信息回调
+				tw_conf.on_error(client, nread, errstr, cliInfo->flag);
+			}
+			else
+				fprintf(stderr, "%d:%s,%s\n", nread, uv_err_name((int)nread), uv_strerror((int)nread));
+		}
+		else //关闭连接
+			tw_close_client(client);
 	}
 	//每次使用完要释放
 	if (buf->base)

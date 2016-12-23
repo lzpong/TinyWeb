@@ -61,54 +61,23 @@ char on_request(uv_stream_t* client, reqHeads heads)
 	tw_send_200_OK(client, "text/html", tmp, -1, 0);
 #endif // _MSC_VER
 
-	//char *data=tw_format_http_respone("200 OK", "text/html", ch, -1, 0);
-	//tw_send_data(client, data, -1, 0, 1);
-	//发送后free data
 	return 1;
 }
+
 char on_socket_data(uv_stream_t* client, membuf_t* buf)
 {
-	//printf("%s\n", buf->data);
+	if(buf->flag& 0x3)
+		printf("ws:%s\n", buf->data);
+	else
+		printf("sk:%s\n", buf->data);
 	return 1;
 }
 
-static __inline  uint64_t htonll(const uint64_t _hostValue)
-{
-#define ShiftRotateRightByte64(xxn64)  \
-	(xxn64 = ((xxn64 >> 8) | (xxn64 << (64 - 8))))\
 
-#define ShiftLeftByte64(xxn64) \
-	(xxn64 = (xxn64 << 8))\
-
-	uint64_t hostValue = _hostValue;
-	uint64_t netValue = 0;
-	netValue |= (hostValue & (uint64_t)(0xFF));
-	ShiftLeftByte64(netValue); ShiftRotateRightByte64(hostValue);
-	netValue |= (hostValue & (uint64_t)(0xFF));
-	ShiftLeftByte64(netValue); ShiftRotateRightByte64(hostValue);
-	netValue |= (hostValue & (uint64_t)(0xFF));
-	ShiftLeftByte64(netValue); ShiftRotateRightByte64(hostValue);
-	netValue |= (hostValue & (uint64_t)(0xFF));
-	ShiftLeftByte64(netValue); ShiftRotateRightByte64(hostValue);
-	netValue |= (hostValue & (uint64_t)(0xFF));
-	ShiftLeftByte64(netValue); ShiftRotateRightByte64(hostValue);
-	netValue |= (hostValue & (uint64_t)(0xFF));
-	ShiftLeftByte64(netValue); ShiftRotateRightByte64(hostValue);
-	netValue |= (hostValue & (uint64_t)(0xFF));
-	ShiftLeftByte64(netValue); ShiftRotateRightByte64(hostValue);
-	netValue |= (hostValue & (uint64_t)(0xFF));
-#undef ShiftRotateRightByte64 
-#undef ShiftLeftByte64 
-	return netValue;
-}
 
 
 int main(int argc, char** argv)
 {
-	//测试WebSocket握手Key计算
-	//char* p = WebSocketHandShak("jfd/fda6866we/==");
-	//printf(p);
-	//free(p);
 	int i;
 	for (i = 0; i < argc; i++)
 		printf("arg[%d]:%s\n",i,argv[i]);
@@ -117,12 +86,10 @@ int main(int argc, char** argv)
 	//配置TinyWeb
 	tw_config conf;
 	memset(&conf, 0, sizeof(conf));
-	conf.dirlist = 0;//目录列表
+	conf.dirlist = 1;//目录列表
 	//conf.ip = NULL;// "127.0.0.1";
 	conf.port = 8080;
 	//conf.doc_dir = NULL;//默认程序文件所在目录
-	//conf.doc_dir = "E:\\Projects\\C++\\Lzp_Library\\Test\\tinyweb\\WWWRoot";
-	//conf.doc_dir = "I:\\WWWRoot\\CMS\\EmpireCMS_7.2_SC_UTF8";
 	if (argc > 1)
 		conf.doc_dir = argv[1];
 	conf.doc_index = NULL;//默认主页

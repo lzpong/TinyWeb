@@ -90,7 +90,7 @@ typedef struct {
 	//Socket 检测到错误(此时链接可能已经断开)
 	//buf成员不需要free
 	//错误消息格式："%d:%s,%s,%s"
-	char (*on_error)(uv_stream_t* client,int errcode, membuf_t* buf);
+	char (*on_error)(uv_stream_t* client,int errcode, char* errstr, int flag);
 
 	//Socket 关闭(此时链接可能已经断开)
 	//flag:标志字节 ([0~7]: [0]是否需要保持连接<非长连接为http> [1]是否WebSocket
