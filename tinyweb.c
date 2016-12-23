@@ -144,7 +144,7 @@ static void tw_301_Moved(uv_stream_t* client, reqHeads heads) {
 
 //发送文件到客户端
 static char tw_http_send_file(uv_stream_t* client, const char* content_type, const char* file, const char* reqPath) {
-	size_t file_size, read_bytes;
+	size_t file_size;// read_bytes;
 	int respone_size;
 	char *file_data, *respone;
 	FILE* fp = fopen(file, "rb");
@@ -384,8 +384,8 @@ static char* tw_get_http_heads(const uv_buf_t* buf, reqHeads* heads) {
 }
 
 //on_read_WebSocket
-static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data, ULONG Len) {
-	ULONG len;
+static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data, unsigned long Len) {
+	unsigned long len;
 	char *gb;
 	WebSocketHandle* hd;
 	if (cliInfo->data)
@@ -397,7 +397,7 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 		membuf_init(&hd->buf, 128);
 	hd->buf.flag = cliInfo->flag;
 	//
-	ULONG leftlen = WebSocketGetData(hd, data, Len);
+	unsigned long leftlen = WebSocketGetData(hd, data, Len);
 	if (hd->isEof)
 	{
 		switch (hd->type) {
@@ -457,7 +457,7 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 
 //(循环)读取客户端发送的数据,接收客户的数据
 static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
-	ULONG Len = buf->len;
+	unsigned long Len = buf->len;
 	membuf_t* cliInfo = (membuf_t*)client->data; //see tw_on_connection()
 	if (nread > 0) {
 		assert(cliInfo);
