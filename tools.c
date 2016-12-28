@@ -38,9 +38,9 @@
 
 #include <assert.h>
 //初始化
-void membuf_init(membuf_t* buf, unsigned int initial_buffer_size) {
+void membuf_init(membuf_t* buf, uint initial_buffer_size) {
 	memset(buf, 0, sizeof(membuf_t));
-	buf->data = initial_buffer_size > 0 ? (unsigned char*)calloc(1, initial_buffer_size) : NULL;
+	buf->data = initial_buffer_size > 0 ? (uchar*)calloc(1, initial_buffer_size) : NULL;
 	//memset(buf->data, 0, initial_buffer_size);
 	buf->buffer_size = initial_buffer_size;
 }
@@ -51,13 +51,13 @@ void membuf_uninit(membuf_t* buf) {
 	memset(buf, 0, sizeof(membuf_t));
 }
 //清除数据（数据覆盖为NULL），并缩小buffer大小
-void membuf_clear(membuf_t* buf, unsigned int maxSize)
+void membuf_clear(membuf_t* buf, uint maxSize)
 {
 	if (buf->data && buf->size)
 	{
 		if (maxSize>1 && buf->buffer_size > maxSize)
 		{
-			unsigned char* p = (unsigned char*)realloc(buf->data, maxSize);
+			uchar* p = (uchar*)realloc(buf->data, maxSize);
 			//防止realloc分配失败，或返回的地址一样
 			assert(p);
 			if (p != buf->data)
@@ -73,16 +73,16 @@ void membuf_clear(membuf_t* buf, unsigned int maxSize)
 	}
 }
 ////扩展buffer大小
-void membuf_reserve(membuf_t* buf, unsigned int extra_size) {
+void membuf_reserve(membuf_t* buf, uint extra_size) {
 	if (extra_size > buf->buffer_size - buf->size) {
 		//calculate new buffer size
-		unsigned int new_buffer_size = buf->buffer_size == 0 ? extra_size : buf->buffer_size << 1;
-		unsigned int new_data_size = buf->size + extra_size;
+		uint new_buffer_size = buf->buffer_size == 0 ? extra_size : buf->buffer_size << 1;
+		uint new_data_size = buf->size + extra_size;
 		while (new_buffer_size < new_data_size)
 			new_buffer_size <<= 1;
 
 		// malloc/realloc new buffer
-		unsigned char* p = (unsigned char*)realloc(buf->data, new_buffer_size); // realloc new buffer
+		uchar* p = (uchar*)realloc(buf->data, new_buffer_size); // realloc new buffer
 		//防止realloc分配失败，或返回的地址一样
 		assert(p);
 		if (p != buf->data)
@@ -91,19 +91,20 @@ void membuf_reserve(membuf_t* buf, unsigned int extra_size) {
 		buf->buffer_size = new_buffer_size;
 	}
 }
-//截断(释放)多余的内存
+//截断(释放)多余的内存 或者增加内存,至 size+4 的大小; 后面4字节填充0
 void membuf_trunc(membuf_t* buf) {
-	if (buf->buffer_size > (buf->size + 1)) {
-		unsigned char* p = (unsigned char*)realloc(buf->data, buf->size + 1); // realloc new buffer
+	if (buf->buffer_size > (buf->size + 4) || buf->buffer_size < (buf->size + 4)) {
+		uchar* p = (uchar*)realloc(buf->data, buf->size + 4); // realloc new buffer
 		//防止realloc分配失败，或返回的地址一样
 		assert(p);
 		if (p && p != buf->data)
 			buf->data = p;
-		buf->buffer_size = buf->size + 1;
+		memset(buf->data + buf->size, 0, 4);
+		buf->buffer_size = buf->size + 4;
 	}
 }
 //添加数据
-unsigned int membuf_append_data(membuf_t* buf, const void* data, unsigned int size) {
+uint membuf_append_data(membuf_t* buf, const void* data, uint size) {
 	assert(data && size > 0);
 	membuf_reserve(buf, size);
 	char* c=memmove(buf->data + buf->size, data, size);
@@ -111,7 +112,7 @@ unsigned int membuf_append_data(membuf_t* buf, const void* data, unsigned int si
 	return (buf->size - size);
 }
 //插入数据：offset位置，data数据，size数据大小
-void membuf_insert(membuf_t* buf, unsigned int offset, void* data, unsigned int size) {
+void membuf_insert(membuf_t* buf, uint offset, void* data, uint size) {
 	assert(offset < buf->size);
 	membuf_reserve(buf, size);
 	memcpy(buf->data + offset + size, buf->data + offset, buf->size - offset);
@@ -119,7 +120,7 @@ void membuf_insert(membuf_t* buf, unsigned int offset, void* data, unsigned int 
 	buf->size += size;
 }
 //从末尾移除数据（不会填充为NULL，仅更改size）
-void membuf_remove(membuf_t* buf, unsigned int offset, unsigned int size) {
+void membuf_remove(membuf_t* buf, uint offset, uint size) {
 	assert(offset < buf->size);
 	if (offset + size >= buf->size) {
 		buf->size = offset;
@@ -397,9 +398,238 @@ char* listDir(const char* fullpath, const char* pathinfo)
 //-----------------------------------------------------------------------------------编码转换  win/linux
 #pragma region 编码转换
 
+/*****************************************************************************
+* 将一个字符的Unicode(UCS-2和UCS-4)编码转换成UTF-8编码.
+*
+* 参数:
+*    unic     字符的Unicode编码值
+*    pOutput  指向输出的用于存储UTF8编码值的缓冲区的指针
+*    outsize  pOutput缓冲的大小
+*
+* 返回值:
+*    返回转换后的字符的UTF8编码所占的字节数, 如果出错则返回 0 .
+*
+* 注意:
+*     1. UTF8没有字节序问题, 但是Unicode有字节序要求;
+*        字节序分为大端(Big Endian)和小端(Little Endian)两种;
+*        在Intel处理器中采用小端法表示, 在此采用小端法表示. (低地址存低位)
+*     2. 请保证 pOutput 缓冲区有最少有 6 字节的空间大小!
+****************************************************************************/
+int enc_unicode_to_utf8_one(uint unic, uchar *pOutput, int outSize)
+{
+	assert(pOutput != NULL);
+	assert(outSize >= 6);
+
+	if (unic <= 0x0000007F)
+	{
+		// U-00000000 - U-0000007F:  0xxxxxxx
+		*pOutput = (unic & 0x7F);
+		return 1;
+	}
+	else if (unic >= 0x00000080 && unic <= 0x000007FF)
+	{
+		// * U-00000080 - U-000007FF:  110xxxxx 10xxxxxx
+		*pOutput = ((unic >> 6) & 0x1F) | 0xC0;
+		*(pOutput + 1) = (unic & 0x3F) | 0x80;
+		return 2;
+	}
+	else if (unic >= 0x00000800 && unic <= 0x0000FFFF)
+	{
+		// U-00000800 - U-0000FFFF:  1110xxxx 10xxxxxx 10xxxxxx
+		*pOutput = ((unic >> 12) & 0x0F) | 0xE0;
+		*(pOutput + 1) = ((unic >> 6) & 0x3F) | 0x80;
+		*(pOutput + 2) = (unic & 0x3F) | 0x80;
+		return 3;
+	}
+	else if (unic >= 0x00010000 && unic <= 0x001FFFFF)
+	{
+		// U-00010000 - U-001FFFFF:  11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+		*pOutput = ((unic >> 18) & 0x07) | 0xF0;
+		*(pOutput + 1) = ((unic >> 12) & 0x3F) | 0x80;
+		*(pOutput + 2) = ((unic >> 6) & 0x3F) | 0x80;
+		*(pOutput + 3) = (unic & 0x3F) | 0x80;
+		return 4;
+	}
+	else if (unic >= 0x00200000 && unic <= 0x03FFFFFF)
+	{
+		// U-00200000 - U-03FFFFFF:  111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+		*pOutput = ((unic >> 24) & 0x03) | 0xF8;
+		*(pOutput + 1) = ((unic >> 18) & 0x3F) | 0x80;
+		*(pOutput + 2) = ((unic >> 12) & 0x3F) | 0x80;
+		*(pOutput + 3) = ((unic >> 6) & 0x3F) | 0x80;
+		*(pOutput + 4) = (unic & 0x3F) | 0x80;
+		return 5;
+	}
+	else if (unic >= 0x04000000 && unic <= 0x7FFFFFFF)
+	{
+		// U-04000000 - U-7FFFFFFF:  1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+		*pOutput = ((unic >> 30) & 0x01) | 0xFC;
+		*(pOutput + 1) = ((unic >> 24) & 0x3F) | 0x80;
+		*(pOutput + 2) = ((unic >> 18) & 0x3F) | 0x80;
+		*(pOutput + 3) = ((unic >> 12) & 0x3F) | 0x80;
+		*(pOutput + 4) = ((unic >> 6) & 0x3F) | 0x80;
+		*(pOutput + 5) = (unic & 0x3F) | 0x80;
+		return 6;
+	}
+	return 0;
+}
+
+int enc_get_utf8_size(const unsigned char pInput)
+{
+	unsigned char c = pInput;
+	// 0xxxxxxx 返回0   0x0
+	// 10xxxxxx 不存在  0x80
+	// 110xxxxx 返回2   0xC0
+	// 1110xxxx 返回3   0xE0
+	// 11110xxx 返回4   0xF0
+	// 111110xx 返回5   0xF8
+	// 1111110x 返回6   0xFC
+	if (c< 0x80) return 1;
+	if (c >= 0x80 && c<0xC0) return -1;
+	if (c >= 0xC0 && c<0xE0) return 2;
+	if (c >= 0xE0 && c<0xF0) return 3;
+	if (c >= 0xF0 && c<0xF8) return 4;
+	if (c >= 0xF8 && c<0xFC) return 5;
+	if (c >= 0xFC) return 6;
+}
+/*****************************************************************************
+* 将一个字符的UTF8编码转换成Unicode(UCS-2和UCS-4)编码.
+*
+* 参数:
+*    pInput      指向输入缓冲区, 以UTF-8编码
+*    Unic        指向输出缓冲区, 其保存的数据即是Unicode编码值,
+*                类型为ulong .
+*
+* 返回值:
+*    成功则返回该字符的Unicode编码所占用的字节数; 失败则返回0.
+*
+* 注意:
+*     1. UTF8没有字节序问题, 但是Unicode有字节序要求;
+*        字节序分为大端(Big Endian)和小端(Little Endian)两种;
+*        在Intel处理器中采用小端法表示, 在此采用小端法表示. (低地址存低位)
+****************************************************************************/
+int enc_utf8_to_unicode_one(const uchar* pInput, uint *Unic)
+{
+	assert(pInput != NULL && Unic != NULL);
+
+	// b1 表示UTF-8编码的pInput中的高字节, b2 表示次高字节, ...
+	char b1, b2, b3, b4, b5, b6;
+
+	*Unic = 0x0; // 把 *Unic 初始化为全零
+	int utfbytes = enc_get_utf8_size(*pInput);
+	uchar *pOutput = (uchar *)Unic;
+
+	switch (utfbytes)
+	{
+	case 1://1字节
+		*pOutput = *pInput;
+		break;
+	case 2://2字节
+		b1 = *pInput;
+		b2 = *(pInput + 1);
+		if ((b2 & 0xC0) != 0x80)
+			return 0;
+		*pOutput = (b1 << 6) + (b2 & 0x3F);
+		*(pOutput + 1) = (b1 >> 2) & 0x07;
+		break;
+	case 3:
+		b1 = *pInput;
+		b2 = *(pInput + 1);
+		b3 = *(pInput + 2);
+		if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80))
+			return 0;
+		*pOutput = (b2 << 6) + (b3 & 0x3F);
+		*(pOutput + 1) = (b1 << 4) + ((b2 >> 2) & 0x0F);
+		break;
+	case 4:
+		b1 = *pInput;
+		b2 = *(pInput + 1);
+		b3 = *(pInput + 2);
+		b4 = *(pInput + 3);
+		if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
+			|| ((b4 & 0xC0) != 0x80))
+			return 0;
+		*pOutput = (b3 << 6) + (b4 & 0x3F);
+		*(pOutput + 1) = (b2 << 4) + ((b3 >> 2) & 0x0F);
+		*(pOutput + 2) = ((b1 << 2) & 0x1C) + ((b2 >> 4) & 0x03);
+		break;
+	case 5:
+		b1 = *pInput;
+		b2 = *(pInput + 1);
+		b3 = *(pInput + 2);
+		b4 = *(pInput + 3);
+		b5 = *(pInput + 4);
+		if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
+			|| ((b4 & 0xC0) != 0x80) || ((b5 & 0xC0) != 0x80))
+			return 0;
+		*pOutput = (b4 << 6) + (b5 & 0x3F);
+		*(pOutput + 1) = (b3 << 4) + ((b4 >> 2) & 0x0F);
+		*(pOutput + 2) = (b2 << 2) + ((b3 >> 4) & 0x03);
+		*(pOutput + 3) = (b1 << 6);
+		break;
+	case 6:
+		b1 = *pInput;
+		b2 = *(pInput + 1);
+		b3 = *(pInput + 2);
+		b4 = *(pInput + 3);
+		b5 = *(pInput + 4);
+		b6 = *(pInput + 5);
+		if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
+			|| ((b4 & 0xC0) != 0x80) || ((b5 & 0xC0) != 0x80)
+			|| ((b6 & 0xC0) != 0x80))
+			return 0;
+		*pOutput = (b5 << 6) + (b6 & 0x3F);
+		*(pOutput + 1) = (b5 << 4) + ((b6 >> 2) & 0x0F);
+		*(pOutput + 2) = (b3 << 2) + ((b4 >> 4) & 0x03);
+		*(pOutput + 3) = ((b1 << 6) & 0x40) + (b2 & 0x3F);
+		break;
+	default:
+		utfbytes = 0;
+		break;
+	}
+	return utfbytes;
+}
+
+char* enc_u2u8(char* data, uint* len) {
+	int t;
+	uint ch;
+	membuf_t buf;
+	membuf_init(&buf, 128);
+	*len--;
+	for (ulong i = 0; i <= *len; ) {
+		if (buf.buffer_size - buf.size < 7)
+			membuf_reserve(&buf, 7);
+		ch = data[i++] << 8 + data[i++];
+		t = enc_unicode_to_utf8_one(data[i], buf.data + buf.size, 7);
+		if (t == 0) break;
+		buf.size += t;
+	}
+	membuf_trunc(&buf);
+	*len = buf.size;
+	return buf.data;
+}
+
+char* enc_u82u(char* data, uint* len) {
+	int t;
+	membuf_t buf;
+	membuf_init(&buf, 128);
+	for (uint i = 0; i < *len;) {
+		if (buf.buffer_size - buf.size < 4)
+			membuf_reserve(&buf, 4);
+		t= enc_utf8_to_unicode_one(data + i, buf.data + buf.size);
+		if (t == 0) break;
+		buf.size += 2;
+		i += t;
+	}
+	membuf_trunc(&buf);
+	*len = buf.size;
+	return buf.data;
+}
+
+
 #ifdef _MSC_VER
 //GB2312 to unicode
-wchar_t* GB2U(char* pszGbs, size_t* wLen)
+wchar_t* GB2U(char* pszGbs, uint* wLen)
 {
 	*wLen = MultiByteToWideChar(CP_ACP, 0, pszGbs, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*wLen * sizeof(wchar_t));
@@ -407,7 +637,7 @@ wchar_t* GB2U(char* pszGbs, size_t* wLen)
 	return wStr;
 }
 //unicode to utf8
-char* U2U8(wchar_t* wszUnicode, size_t* aLen)
+char* U2U8(wchar_t* wszUnicode, uint* aLen)
 {
 	*aLen = WideCharToMultiByte(CP_UTF8, 0, (PWSTR)wszUnicode, -1, NULL, 0, NULL, NULL);
 	char* szStr = (char*)malloc(*aLen * sizeof(char));
@@ -415,7 +645,7 @@ char* U2U8(wchar_t* wszUnicode, size_t* aLen)
 	return szStr;
 }
 //utf8 to unicode
-wchar_t* U82U(char* szU8, size_t* wLen)
+wchar_t* U82U(char* szU8, uint* wLen)
 {
 	*wLen = MultiByteToWideChar(CP_UTF8, 0, szU8, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*wLen * sizeof(wchar_t));
@@ -423,7 +653,7 @@ wchar_t* U82U(char* szU8, size_t* wLen)
 	return wStr;
 }
 //unicode to GB2312
-char* U2GB(wchar_t* wszUnicode, size_t* aLen)
+char* U2GB(wchar_t* wszUnicode, uint* aLen)
 {
 	*aLen = WideCharToMultiByte(CP_ACP, 0, wszUnicode, -1, NULL, 0, NULL, NULL);
 	char* szStr = (char*)malloc(*aLen * sizeof(char));
@@ -431,7 +661,7 @@ char* U2GB(wchar_t* wszUnicode, size_t* aLen)
 	return szStr;
 }
 //GB2312 to utf8
-char* GB2U8(char* pszGbs, size_t* aLen)
+char* GB2U8(char* pszGbs, uint* aLen)
 {
 	*aLen = MultiByteToWideChar(CP_ACP, 0, pszGbs, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*aLen * sizeof(wchar_t));
@@ -444,7 +674,7 @@ char* GB2U8(char* pszGbs, size_t* aLen)
 	return szStr;
 }
 //utf8 to GB2312
-char* U82GB(char* szU8, size_t* aLen)
+char* U82GB(char* szU8, uint* aLen)
 {
 	*aLen = MultiByteToWideChar(CP_UTF8, 0, szU8, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*aLen * sizeof(wchar_t));
@@ -460,10 +690,10 @@ char* U82GB(char* szU8, size_t* aLen)
 #else
 
 //代码转换:从一种编码转为另一种编码
-int code_convert(char *from_charset, char *to_charset, char *inbuf, size_t inlen, char *outbuf, size_t* outlen)
+uint code_convert(char *from_charset, char *to_charset, char *inbuf, uint inlen, char *outbuf, uint* outlen)
 {
 	iconv_t cd;
-	size_t rc = 0, len = *outlen;
+	uint rc = 0, len = *outlen;
 	char **pin = &inbuf;
 	char **pout = &outbuf;
 
@@ -479,62 +709,62 @@ int code_convert(char *from_charset, char *to_charset, char *inbuf, size_t inlen
 }
 
 //GB2312 to unicode(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* GB2U(char* pszGbs, size_t* aLen)
+char* GB2U(char* pszGbs, uint* aLen)
 {
-	size_t len = *aLen * 4;
+	uint len = *aLen * 4;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
-	size_t rc=code_convert("gb2312", "unicode", pszGbs, *aLen, outbuf, &len);
+	uint rc=code_convert("gb2312", "unicode", pszGbs, *aLen, outbuf, &len);
 	if (rc < 0) *aLen = rc;
 	else *aLen = len + 1;
 	return outbuf;
 }
 //unicode to utf8(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* U2U8(char* wszUnicode, size_t* aLen)
+char* U2U8(char* wszUnicode, uint* aLen)
 {
-	size_t len = *aLen;
+	uint len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
-	size_t rc = code_convert("unicode", "utf-8", wszUnicode, *aLen, outbuf, &len);
+	uint rc = code_convert("unicode", "utf-8", wszUnicode, *aLen, outbuf, &len);
 	if (rc < 0) *aLen = rc;
 	else *aLen = len + 1;
 	return outbuf;
 }
 //utf8 to unicode(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* U82U(char* szU8, size_t* aLen)
+char* U82U(char* szU8, uint* aLen)
 {
-	size_t len = *aLen * 2;
+	uint len = *aLen * 2;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
-	size_t rc = code_convert("utf-8", "unicode", szU8, *aLen, outbuf, &len);
+	uint rc = code_convert("utf-8", "unicode", szU8, *aLen, outbuf, &len);
 	if (rc < 0) *aLen = rc;
 	else *aLen = len + 1;
 	return outbuf;
 }
 //unicode to GB2312(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* U2GB(char* wszUnicode, size_t* aLen)
+char* U2GB(char* wszUnicode, uint* aLen)
 {
-	size_t len = *aLen;
+	uint len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
-	size_t rc = code_convert("unicode", "gb2312", wszUnicode, *aLen, outbuf, &len);
+	uint rc = code_convert("unicode", "gb2312", wszUnicode, *aLen, outbuf, &len);
 	if (rc < 0) *aLen = rc;
 	else *aLen = len + 1;
 	return outbuf;
 }
 
 //GB2312 to utf8(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* GB2U8(char* pszGbs, size_t* aLen)
+char* GB2U8(char* pszGbs, uint* aLen)
 {
-	size_t len = *aLen * 3;
+	uint len = *aLen * 3;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
-	size_t rc = code_convert("gb2312", "utf-8", pszGbs, *aLen, outbuf, &len);
+	uint rc = code_convert("gb2312", "utf-8", pszGbs, *aLen, outbuf, &len);
 	if (rc < 0) *aLen = rc;
 	else *aLen = len + 1;
 	return outbuf;
 }
 //utf8 to GB2312(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* U82GB(char* szU8, size_t* aLen)
+char* U82GB(char* szU8, uint* aLen)
 {
-	size_t len = *aLen;
+	uint len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
-	size_t rc = code_convert("utf-8", "gb2312", szU8, *aLen, outbuf, &len);
+	uint rc = code_convert("utf-8", "gb2312", szU8, *aLen, outbuf, &len);
 	if (rc < 0) *aLen = rc;
 	else *aLen = len + 1;
 	return outbuf;
@@ -552,28 +782,28 @@ char* U82GB(char* szU8, size_t* aLen)
 *			 binUCS2 - UCS2字节流数组
 * 返 回 值： 转换到UCS2字节流数组中的U16单元个数
 ***************************************************************************/
-unsigned int UTF8ToUCS2(const unsigned char* binUTF8, unsigned int uCount, unsigned short* binUCS2)
+uint UTF8ToUCS2(const uchar* binUTF8, uint uCount, ushort* binUCS2)
 {
-	unsigned int uLength = 0;
-	unsigned char* szTemp = (unsigned char*)binUTF8;
-	while ((unsigned int)(szTemp - binUTF8) < uCount)
+	uint uLength = 0;
+	uchar* szTemp = (uchar*)binUTF8;
+	while ((uint)(szTemp - binUTF8) < uCount)
 	{
 		if (*szTemp <= 0x7F) //0xxxxxxx
 		{
-			binUCS2[uLength] = binUCS2[uLength] | (unsigned short)(*szTemp & 0x7F);
+			binUCS2[uLength] = binUCS2[uLength] | (ushort)(*szTemp & 0x7F);
 			szTemp = szTemp + 1;
 		}
 		else if (*szTemp <= 0xDF) //110xxxxx 10xxxxxx
 		{
-			binUCS2[uLength] = binUCS2[uLength] | (unsigned short)(*(szTemp + 1) & 0x3F);
-			binUCS2[uLength] = binUCS2[uLength] | ((unsigned short)(*(szTemp) & 0x1F) << 6);
+			binUCS2[uLength] = binUCS2[uLength] | (ushort)(*(szTemp + 1) & 0x3F);
+			binUCS2[uLength] = binUCS2[uLength] | ((ushort)(*(szTemp) & 0x1F) << 6);
 			szTemp = szTemp + 2;
 		}
 		else if (*szTemp <= 0xEF) //1110xxxx 10xxxxxx 10xxxxxx
 		{
-			binUCS2[uLength] = binUCS2[uLength] | (unsigned short)(*(szTemp + 2) & 0x3F);
-			binUCS2[uLength] = binUCS2[uLength] | ((unsigned short)(*(szTemp + 1) & 0x3F) << 6);
-			binUCS2[uLength] = binUCS2[uLength] | ((unsigned short)(*(szTemp) & 0x0F) << 12);
+			binUCS2[uLength] = binUCS2[uLength] | (ushort)(*(szTemp + 2) & 0x3F);
+			binUCS2[uLength] = binUCS2[uLength] | ((ushort)(*(szTemp + 1) & 0x3F) << 6);
+			binUCS2[uLength] = binUCS2[uLength] | ((ushort)(*(szTemp) & 0x0F) << 12);
 			szTemp = szTemp + 3;
 		}
 		else
@@ -592,13 +822,13 @@ unsigned int UTF8ToUCS2(const unsigned char* binUTF8, unsigned int uCount, unsig
 #pragma region url编码解码
 
 //url编码 (len为buf的长度)
-char* url_encode(const char *url, size_t* len)
+char* url_encode(const char *url, uint* len)
 {
 	if (!url)
 		return NULL;
 	membuf_t buf;
 	const char *p;
-	size_t x = 0;
+	uint x = 0;
 	const char urlunsafe[] = "\r\n \"#%&+:;<=>?@[\\]^`{|}";
 	const char hex[] = "0123456789ABCDEF";
 	char enc[3] = {'%',0,0};
@@ -625,7 +855,7 @@ char* url_encode(const char *url, size_t* len)
 char* url_decode(char *url)
 {
 	char *o,*s;
-	unsigned int tmp;
+	uint tmp;
 
 	for (o = s=url; *s; s++, o++) {
 		if (*s == '%' && strlen(s) > 2 && sscanf(s + 1, "%2x", &tmp) == 1) {
@@ -648,17 +878,17 @@ char* url_decode(char *url)
 char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 char base64_end = '=';
 
-inline char is_base64(unsigned char c) {
+inline char is_base64(uchar c) {
 	return (isalnum(c) || (c == '+') || (c == '/'));
 }
 
 //Base64编码,需要释放返回值(need free return)
-char* base64_Encode(unsigned char const* bytes_to_encode, unsigned int in_len)
+char* base64_Encode(uchar const* bytes_to_encode, uint in_len)
 {
 	membuf_t ret;
 	int i = 0, j = 0;
-	unsigned char char_array_3[3];
-	unsigned char char_array_4[4];
+	uchar char_array_3[3];
+	uchar char_array_4[4];
 
 	membuf_init(&ret, in_len*3);//初始化缓存字节数为 长度的3被
 
@@ -702,7 +932,7 @@ char* base64_Decode(char* const encoded_string)
 	int i = 0;
 	int j = 0;
 	int in_ = 0;
-	unsigned char char_array_4[4], char_array_3[3];
+	uchar char_array_4[4], char_array_3[3];
 	membuf_t ret;
 
 	while (in_len-- && (encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
@@ -797,7 +1027,7 @@ void hash1_Reset(SHA1_CONTEXT* hd)
 /*
 * Transform the message X which consists of 16 32-bit-words
 */
-static void hash1_transform(SHA1_CONTEXT* hd, unsigned char *data)
+static void hash1_transform(SHA1_CONTEXT* hd, uchar *data)
 {
 	uint a, b, c, d, e, tm;
 	uint x[16];
@@ -813,8 +1043,8 @@ static void hash1_transform(SHA1_CONTEXT* hd, unsigned char *data)
 	memcpy(x, data, 64);
 #else
 	{ int i;
-	unsigned char *p2;
-	for (i = 0, p2 = (unsigned char*)x; i < 16; i++, p2 += 4) {
+	uchar *p2;
+	for (i = 0, p2 = (uchar*)x; i < 16; i++, p2 += 4) {
 		p2[3] = *data++;
 		p2[2] = *data++;
 		p2[1] = *data++;
@@ -915,8 +1145,8 @@ static void hash1_transform(SHA1_CONTEXT* hd, unsigned char *data)
 
 
 // Update the message digest with the contents of INBUF with length INLEN.
-void hash1_Write(SHA1_CONTEXT* hd, unsigned char *inbuf, size_t inlen)
-//static void sha1_write( SHA1_CONTEXT *hd, char *inbuf, size_t inlen)
+void hash1_Write(SHA1_CONTEXT* hd, uchar *inbuf, uint inlen)
+//static void sha1_write( SHA1_CONTEXT *hd, char *inbuf, uint inlen)
 {
 	if (hd->bFinal)
 		hash1_Reset(hd);
@@ -954,7 +1184,7 @@ void hash1_Write(SHA1_CONTEXT* hd, unsigned char *inbuf, size_t inlen)
 void hash1_Final(SHA1_CONTEXT* hd)
 {
 	uint t, msb, lsb;
-	unsigned char *p;
+	uchar *p;
 
 	hash1_Write(hd, NULL, 0); /* flush */;
 
@@ -1013,7 +1243,7 @@ void hash1_Final(SHA1_CONTEXT* hd)
 }
 
 
-unsigned char* hash1_Get(SHA1_CONTEXT* hd)
+uchar* hash1_Get(SHA1_CONTEXT* hd)
 {
 	if (!hd->bFinal)
 		hash1_Final(hd);
@@ -1042,7 +1272,7 @@ char* WebSocketHandShak(const char* key)
 		strncpy(akey + strlen(key), "258EAFA5-E914-47DA-95CA-C5AB0DC85B11", 36);
 
 		hash1_Reset(&hd);
-		hash1_Write(&hd, (unsigned char*)akey, strlen(akey));
+		hash1_Write(&hd, (uchar*)akey, strlen(akey));
 		hash1_Final(&hd);
 		p=base64_Encode(hd.buf, strlen((char*)hd.buf));
 		len=sprintf(acc, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", p);
@@ -1056,25 +1286,16 @@ char* WebSocketHandShak(const char* key)
 	//else
 	//	return NULL;
 }
-/*
-typedef union  {
-	unsigned short n;
-	unsigned char c[2];
-}u2;
-typedef union  {
-	unsigned long long n;
-	unsigned char c[8];
-}u8;
-*/
-static void WebSocketDoMask(char* data, unsigned long len, char* mask)
+
+static void WebSocketDoMask(char* data, ulong len, char* mask)
 {
-	unsigned long i = 0;
+	ulong i = 0;
 	for(i=0; i<len; i++ )
 		data[i] = data[i] ^ mask[i % 4];
 }
 
 //从帧中取得实际数据
-unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned long len)
+ulong WebSocketGetData(WebSocketHandle* handle, char* data, ulong len)
 {
 	if (!handle || !data) return 0;
 	handle->isEof = (char)(data[0] >> 7);//是否结束
@@ -1085,8 +1306,8 @@ unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned lon
 	membuf_t* buf = &handle->buf;
 	//Payload长度是ExtensionData长度与ApplicationData长度之和。
 	//ExtensionData长度可能是0，这种情况下，Payload长度即是ApplicationData长度(默认ExtensionData长度是0)
-	unsigned long tLen;//本次真实数据长度
-	unsigned long Len = data[1] & 0x7f;//Payload长度
+	ulong tLen;//本次真实数据长度
+	ulong Len = data[1] & 0x7f;//Payload长度
 	//当前帧,第一截数据
 	if (Len < 126) //如果其值在0-125，则是payload的真实长度(ApplicationData长度,ExtensionData长度为0)
 	{
@@ -1096,7 +1317,7 @@ unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned lon
 			{
 				memcpy(Mask, &data[2], 4);
 				tLen = len - 6;
-				Len = Len > tLen ? tLen : Len;
+				Len = (Len>0 && Len > tLen) ? tLen : Len;
 				membuf_append_data(buf, &data[6], Len);
 				WebSocketDoMask(buf->data + buf->size - Len, Len, Mask);
 			}
@@ -1105,23 +1326,20 @@ unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned lon
 			if ((len - 2)>0)
 			{
 				tLen = len - 2;
-				Len = Len > tLen ? tLen : Len;
+				Len = (Len>0 && Len > tLen) ? tLen : Len;
 				membuf_append_data(buf, &data[2], Len);
 			}
 	}
-	else if (Len == 126)//如果值是126，则后面2个字节形成的16位无符号整型数(unsigned short)的值是payload的真实长度，掩码就紧更着后面
+	else if (Len == 126)//如果值是126，则后面2个字节形成的16位无符号整型数(ushort)的值是payload的真实长度，掩码就紧更着后面
 	{
-		//u2 u; memcpy(u.c, &data[2], 2);
-		//Len = ntohs(u.n);//网络字节转换
-		Len = data[2]*0x100UL+data[3]*0x1UL;//逐字节转换
-
+		Len = data[2]*0x100UL+(uchar)data[3];//逐字节转换
 		if (hasMask)
 		{
 			if ((len - 8)>0)
 			{
 				memcpy(Mask, &data[4], 4);//防止结尾帧数据不够长度的错误
 				tLen = len - 8;
-				Len = Len > tLen ? tLen : Len;
+				Len = (Len>0 && Len > tLen) ? tLen : Len;
 				membuf_append_data(buf, &data[8], Len);
 				WebSocketDoMask(buf->data + buf->size - Len, Len, Mask);
 			}
@@ -1134,11 +1352,11 @@ unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned lon
 				membuf_append_data(buf, &data[4], tLen);
 			}
 	}
-	else if (Len == 127)//如果值是127，则后面8个字节形成的64位无符号整型数(unsigned int64)的值是payload的真实长度，掩码就紧更着后面
+	else if (Len == 127)//如果值是127，则后面8个字节形成的64位无符号整型数(uint64)的值是payload的真实长度，掩码就紧更着后面
 	{
 		//Len = data[2] * 0x100000000000000ULL + data[3] * 0x1000000000000ULL + data[4] * 0x10000000000ULL + data[5] * 0x100000000ULL
 		//		+data[6]*0x1000000ULL+data[7]*0x10000ULL+data[8]*0x100ULL+data[9]*0x1ULL;//逐字节转换
-		Len = data[6] * 0x1000000ULL + data[7] * 0x10000ULL + data[8] * 0x100ULL + data[9] * 0x1ULL;//逐字节转换为unsigned long
+		Len = data[6] * 0x1000000ULL + data[7] * 0x10000ULL + data[8] * 0x100ULL + (uchar)data[9];//逐字节转换为ulong
 		if (hasMask)
 		{
 			if ((len - 14)>0)//防止结尾帧数据不够长度的错误
@@ -1160,46 +1378,48 @@ unsigned long WebSocketGetData(WebSocketHandle* handle, char* data, unsigned lon
 	}
 	return Len;
 }
-//转换为一个WebSocket帧,无mask
-char* WebSocketMakeFrame(const char* data, unsigned int* dlen)
+//转换为一个WebSocket帧,无mask (need free return)
+char* WebSocketMakeFrame(const char* data, ulong* dlen,uchar op)
 {
 	if (data == NULL)
 		return NULL;
 	membuf_t buf;
 	membuf_init(&buf, 129);
 	//第一byte,10000000, fin = 1, rsv1 rsv2 rsv3均为0, opcode = 0x01,即数据为文本帧
-	buf.data[0] = 0x81;//0x81 最后一个包 |(无扩展协议)| 控制码(0x1表示文本帧)
-	unsigned char len;
-	if (*dlen <= 125)
-	{
-		len = (unsigned char)*dlen;
-		//数据长度
-		buf.data[1] = (unsigned char)*dlen;
-		buf.size = 2;
-	}
-	else if (*dlen <= 65535)
-	{
-		len = 126;
-		buf.data[1] = 0x7E;
-		//数据长度
-		buf.data[2] = (*dlen >> 8) & 255;
-		buf.data[3] = (*dlen) & 255;
-		buf.size = 4;
-	}
-	else
-	{
-		len = 127;
-		buf.data[1] = 0x7F;
-		//数据长度,前4字节留空,保存32位数据大小
-		//buf.data[2] = (*dlen >> 56) & 255;
-		//buf.data[3] = (*dlen >> 48) & 255;
-		//buf.data[4] = (*dlen >> 40) & 255;
-		//buf.data[5] = (*dlen >> 32) & 255;
-		buf.data[6] = (*dlen >> 24) & 255;
-		buf.data[7] = (*dlen >> 16) & 255;
-		buf.data[8] = (*dlen >> 8) & 255;
-		buf.data[9] = (*dlen) & 255;
-		buf.size = 10;
+	buf.data[0] = 0x80+op;//0x81 最后一个包 |(无扩展协议)| 控制码(0x1表示文本帧)
+	uchar len;
+	if (*dlen > 0) { //要有数据
+		if (*dlen <= 125)
+		{
+			len = (uchar)*dlen;
+			//数据长度
+			buf.data[1] = (uchar)*dlen;
+			buf.size = 2;
+		}
+		else if (*dlen <= 65535)
+		{
+			len = 126;
+			buf.data[1] = 0x7E;
+			//数据长度
+			buf.data[2] = (*dlen >> 8) & 255;
+			buf.data[3] = (*dlen) & 255;
+			buf.size = 4;
+		}
+		else
+		{
+			len = 127;
+			buf.data[1] = 0x7F;
+			//数据长度,前4字节留空,保存32位数据大小
+			//buf.data[2] = (*dlen >> 56) & 255;
+			//buf.data[3] = (*dlen >> 48) & 255;
+			//buf.data[4] = (*dlen >> 40) & 255;
+			//buf.data[5] = (*dlen >> 32) & 255;
+			buf.data[6] = (*dlen >> 24) & 255;
+			buf.data[7] = (*dlen >> 16) & 255;
+			buf.data[8] = (*dlen >> 8) & 255;
+			buf.data[9] = (*dlen) & 255;
+			buf.size = 10;
+		}
 	}
 	membuf_append_data(&buf, data, *dlen);
 	*dlen = buf.size;
@@ -1254,7 +1474,7 @@ tm_u GetLocaTime()
 	return tmu;
 }
 //获取当天已逝去的秒数
-inline size_t GetDaySecond()
+inline uint GetDaySecond()
 {
 	SYSTEMTIME st;
 	GetLocalTime(&st);
@@ -1286,7 +1506,7 @@ tm_u GetLocaTime()
 	return tmu;
 }
 //获取当天已逝去的秒数
-inline size_t GetDaySecond()
+inline uint GetDaySecond()
 {
 	struct timeval  tv;
 	gettimeofday(&tv, NULL);
@@ -1340,7 +1560,7 @@ inline char* stmp2str(time_t t, char* str, int strlen)
 const char* GetIPv4()
 {//详情见：http://www.cnblogs.com/lzpong/p/6137652.html
 	static char CurIP[17] = { 0 };
-	unsigned long stSize = sizeof(IP_ADAPTER_INFO);
+	ulong stSize = sizeof(IP_ADAPTER_INFO);
 	//PIP_ADAPTER_INFO结构体指针存储本机网卡信息
 	PIP_ADAPTER_INFO pIpAdapterInfo = (PIP_ADAPTER_INFO)malloc(stSize);
 	//得到结构体大小,用于GetAdaptersInfo参数

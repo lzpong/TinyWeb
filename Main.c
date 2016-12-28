@@ -34,6 +34,8 @@ auth lzpong 2016/11/24
 #include<stdlib.h>
 #include<string.h>
 
+
+
 //404前回调(未找到页面/文件时回调,此功能便于程序返回自定义功能)；返回0表示没有适合的处理请求，需要发送404错误
 char on_request(uv_stream_t* client, reqHeads heads)
 {
@@ -66,10 +68,40 @@ char on_request(uv_stream_t* client, reqHeads heads)
 
 char on_socket_data(uv_stream_t* client, membuf_t* buf)
 {
-	if(buf->flag& 0x3)
-		printf("ws:%s\n", buf->data);
-	else
-		printf("sk:%s\n", buf->data);
+	if (buf->size < 1)
+		return 1;//防止发生数据为空
+	if (buf->flag & 0x3) {
+		printx(buf->data, buf->size < 256 ? buf->size : 256);
+#ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
+		if (buf->flag & 0x4) {
+			unsigned long len;
+			char *gb, *uc;
+			len = buf->size;
+			gb = U82GB(buf->data, &len);
+
+			printf("ws:%s\nlen=%d\n", gb,len);
+
+			free(gb);
+
+
+			len = buf->size;
+			uc = enc_u82u(buf->data, &len);
+			len /= 2;
+			gb = U2GB((wchar_t *)uc, &len);
+			printf("ws1:%s\nlen=%d\n", gb, len);
+			free(uc);
+			free(gb);
+		}else
+		//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
+#endif // _MSC_VER
+			printf("ws:%s\nlen=%d\n", buf->data,buf->size);
+		unsigned long len = buf->size;
+		char* p = WebSocketMakeFrame(buf->data, &len, 1);//文本帧
+		tw_send_data(client, p, len, 0, 1);
+	} else {
+		printf("sk:%s\nlen=%d\n", buf->data,buf->size);
+		tw_send_data(client, buf->data, buf->size, 1, 0);
+	}
 	return 1;
 }
 
@@ -81,6 +113,8 @@ int main(int argc, char** argv)
 	int i;
 	for (i = 0; i < argc; i++)
 		printf("arg[%d]:%s\n",i,argv[i]);
+
+	wchar_t* w = L"We范aA";
 
 	uv_loop_t* loop = uv_default_loop();
 	//配置TinyWeb

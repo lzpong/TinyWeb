@@ -385,8 +385,6 @@ static char* tw_get_http_heads(const uv_buf_t* buf, reqHeads* heads) {
 
 //on_read_WebSocket
 static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data, unsigned long Len) {
-	unsigned long len;
-	char *gb;
 	WebSocketHandle* hd;
 	if (cliInfo->data)
 		hd = (WebSocketHandle*)cliInfo->data;
@@ -396,7 +394,7 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 	if (NULL == hd->buf.data)
 		membuf_init(&hd->buf, 128);
 	hd->buf.flag = cliInfo->flag;
-	//
+	//printx(data, 16);
 	unsigned long leftlen = WebSocketGetData(hd, data, Len);
 	if (hd->isEof)
 	{
@@ -404,20 +402,9 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 		case 0: //0x0表示附加数据帧
 			break;
 		case 1: //0x1表示文本数据帧
-#ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
-			len = hd->buf.size;
-			gb = U82GB(hd->buf.data, &len);
-			free(hd->buf.data);
-			hd->buf.data = gb;
-			hd->buf.buffer_size = hd->buf.size = len;
-			//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
-#endif // _MSC_VER
-			//接收数据回调
-			if (tw_conf.on_data)
-				tw_conf.on_data(client, &hd->buf);
-			break;
+			hd->buf.flag |= 0x4;
 		case 2: //0x2表示二进制数据帧
-				//接收数据回调
+			//接收数据回调
 			if (tw_conf.on_data)
 				tw_conf.on_data(client, &hd->buf);
 			break;
@@ -429,6 +416,16 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 		case 8: //0x8表示连接关闭
 			*(data + 1) = 0;//无数据
 			tw_send_data(client, data, 2, 1, 0);
+			if (hd->buf.size > 2) { //错误信息
+				if (tw_conf.on_error) {
+					char errstr[60] = { 0 };
+					sprintf(errstr, "-0:wserr,%s", hd->buf.data + 2);
+					//出错信息回调
+					tw_conf.on_error(client, 0, errstr, cliInfo->flag);
+				}
+				else
+					fprintf(stderr, "-0:wserr,%s\n", hd->buf.data + 2);
+			}
 			if (hd->buf.data)
 				free(hd->buf.data);
 			free(hd);

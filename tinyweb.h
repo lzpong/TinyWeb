@@ -140,5 +140,15 @@ void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u
 void tw_close_client(uv_stream_t* client);
 
 
+inline void printx(const uchar* data, uint len) {
+	printf("\n-----------------------------------------------\n");
+	for (uint i = 0; i < len; i++) {
+		if (i > 0 && i % 16 == 0)
+			printf("\n");
+		printf("%02x ", *data);
+		data++;
+	}
+	printf("\n-----------------------------------------------\n");
+}
 
 #endif //__TINYWEB_H__
