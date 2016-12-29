@@ -111,6 +111,7 @@ char on_socket_data(uv_stream_t* client, membuf_t* buf)
 int main(int argc, char** argv)
 {
 	int i;
+	char cmd[1024];
 	for (i = 0; i < argc; i++)
 		printf("arg[%d]:%s\n",i,argv[i]);
 
@@ -132,7 +133,11 @@ int main(int argc, char** argv)
 	conf.on_data = on_socket_data;
 	//启动TinyWeb
 	tinyweb_start(loop, &conf);
-	uv_run(loop, UV_RUN_DEFAULT);
 	//
+	while (1) {
+		gets(cmd);
+		if (strcmpi(cmd, "Q") || strcmpi(cmd, "exit"))
+			break;
+	}
 	return 0;
 }

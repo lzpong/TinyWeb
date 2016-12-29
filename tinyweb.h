@@ -5,7 +5,9 @@
 #ifdef _MSC_VER
 //去掉 warning C4996: '***': The POSIX name for this item is deprecated.Instead, use the ISO C++ conformant name...
 #define _CRT_NONSTDC_NO_DEPRECATE
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 
 #include <libuv\include\uv.h>
 #pragma comment(lib, "libuv.lib")
@@ -13,7 +15,7 @@
 #pragma comment(lib, "IPHLPAPI.lib")
 #pragma comment(lib, "Psapi.lib")
 #pragma comment(lib, "Userenv.lib")
-#  if defined(WIN32)
+#  if defined(WIN32) && !defined(snprintf)
 #  define snprintf _snprintf
 #  endif
 
@@ -26,7 +28,7 @@
 
 #endif
 
-#include "tools.h"
+#include "Tools.h"
 
 #if TinyWeb_Function_Description //TinyWeb功能说明
 
@@ -57,6 +59,10 @@ auth lzpong 2016/11/24
 
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
 	char method;//0:Socket 1:GET 2:POST
 	char* host; //IP:port
@@ -72,7 +78,7 @@ typedef struct {
 	char all_http_callback:1;//是否全部http访问都回调,http update to websocket 除外
 	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
 	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
-	char* ip;       //服务的IP地址
+	char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
 	short port;     //服务监听端口
 
 	//客户端接入
@@ -98,13 +104,14 @@ typedef struct {
 } tw_config;
 
 
-//start web server, linstening ip:port
-//ip: is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
-//doc_root_path: can be NULL, or requires not end with /
-//设置回调函数，传入NULL表示没有回调函数
-void tinyweb_start(uv_loop_t* loop, tw_config* conf);
+//start web server, start with the config
+//loop: if is NULL , it will be uv_default_loop()
+//conf: the server config
+//返回值不为0表示错误代码,用uv_err_name(n),和uv_strerror(n)查看原因字符串
+int tinyweb_start(uv_loop_t* loop, tw_config* conf);
 
 //stop TinyWeb
+//loop: if is NULL , it will be &uv_default_loop()
 void tinyweb_stop(uv_loop_t** loop);
 
 //=================================================
@@ -151,4 +158,7 @@ inline void printx(const uchar* data, uint len) {
 	printf("\n-----------------------------------------------\n");
 }
 
+#ifdef __cplusplus
+} // extern "C"
+#endif
 #endif //__TINYWEB_H__

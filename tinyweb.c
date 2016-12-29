@@ -454,22 +454,19 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 
 //(循环)读取客户端发送的数据,接收客户的数据
 static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
-	unsigned long Len = buf->len;
 	membuf_t* cliInfo = (membuf_t*)client->data; //see tw_on_connection()
 	if (nread > 0) {
 		assert(cliInfo);
-		//得到实际数据长度
-		while (buf->base[Len-1] == 0) --Len;
 		//WebSocket
 		if (cliInfo->flag & 0x2) { //WebSocket
-			on_read_websocket(client, cliInfo, buf->base, Len);
+			on_read_websocket(client, cliInfo, buf->base, nread);
 		}
 		//long-link
 		else if(cliInfo->flag & 0x1){ //long-link
 			//接收数据回调
 			if (tw_conf.on_data){
 				membuf_clear(cliInfo, 0);
-				membuf_append_data(cliInfo, buf->base, Len);
+				membuf_append_data(cliInfo, buf->base, nread);
 				tw_conf.on_data(client, cliInfo);
 			}
 		}
@@ -498,7 +495,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 				//接收数据回调
 				if (tw_conf.on_data) {
 					membuf_clear(cliInfo, 0);
-					membuf_append_data(cliInfo, buf->base, Len);
+					membuf_append_data(cliInfo, buf->base, nread);
 					tw_conf.on_data(client, cliInfo);
 				}
 			}
@@ -553,10 +550,24 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 
 //==================================================================================================
 
-//start web server, linstening ip:port
-//ip is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
-//doc_root_path can be NULL, or requires not end with /
-void tinyweb_start(uv_loop_t* loop, tw_config* conf) {
+//TinyWeb 线程开始运行
+static int tw_run(uv_loop_t* loop) {
+	printf("TinyWeb v1.0.0 is started, listening on %s:%d...\n", tw_conf.ip, tw_conf.port);
+	uv_run(loop, UV_RUN_DEFAULT);
+	uv_stop(loop);
+	free(tw_conf.doc_dir);
+	free(tw_conf.doc_index);
+	if (!uv_loop_close(loop) && loop != uv_default_loop())
+		free(loop);
+	printf("TinyWeb v1.0.0 is stoped, listening on %s:%d...\n", tw_conf.ip, tw_conf.port);
+	return 0;
+}
+
+//start web server, start with the config
+//loop: if is NULL , it will be uv_default_loop()
+//conf: the server config
+int tinyweb_start(uv_loop_t* loop, tw_config* conf) {
+	int ret;
 	char p;
 	assert(conf != NULL);
 	if ( conf->ip == NULL || (conf->ip != NULL && conf->ip[0] == '*'))
@@ -567,7 +578,7 @@ void tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 	memset(&tw_conf, 0, sizeof(tw_config));
 	tw_conf = *conf;
 	//设置主目录（末尾带斜杠）
-	if (conf->doc_dir)
+	if (conf->doc_dir && strcmpi(conf->doc_dir,"")!=0)
 	{
 		p = conf->doc_dir[strlen(conf->doc_dir) - 1];
 		if ( p == '\\' || p=='/')
@@ -596,34 +607,44 @@ void tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 	}
 	printf("WebRoot Dir:%s\n", tw_conf.doc_dir);
 	//设置默认主页（分号间隔）
-	if (conf->doc_index)
+	if (conf->doc_index && strcmpi(conf->doc_index,"")!=0)
 		tw_conf.doc_index = strdup(conf->doc_index);
 	else
 		tw_conf.doc_index = strdup("index.htm;index.html");
-	uv_tcp_init(loop, &_server);
-	uv_tcp_bind(&_server, (const struct sockaddr*) &addr, 0);
-	uv_listen((uv_stream_t*)&_server, 8, tw_on_connection);
-
-	printf("TinyWeb v1.0.0 is started, listening port %s:%d...\n", tw_conf.ip , tw_conf.port);
-	printf("Please access http://%s:%d or http://localhost:%d from you web browser.\n", tw_conf.ip , tw_conf.port, tw_conf.port);
+	if(loop==NULL)
+		loop = uv_default_loop();
+	ret=uv_tcp_init(loop, &_server);
+	if (ret < 0)
+		return ret;
+	ret = uv_tcp_bind(&_server, (const struct sockaddr*) &addr, 0);
+	if (ret < 0)
+		return ret;
+	ret = uv_listen((uv_stream_t*)&_server, 8, tw_on_connection);
+	if (ret < 0)
+		return ret;
+	//开始线程
+	uv_thread_t hare_id;
+	uv_thread_create(&hare_id, tw_run, loop);
+	return 0;
 }
 
-//uv_stop以后不能马上执行uv_loop_close()
-//貌似关闭及释放loop等资源不是很完善的样子
-static void on_uv_walk(uv_handle_t* handl, void* arg)
-{
-	uv_loop_close((uv_loop_t*)arg);
-	free(arg);
-	free(tw_conf.doc_dir);
-	free(tw_conf.doc_index);
-}
 
 //stop TinyWeb
 //当执行uv_stop之后，uv_run并不能马上退出，而是要等待其内部循环的下一个iteration到来时才会退出；
 //如果提前free掉loop就会导致loop失效。当然也可以sleep几十毫秒然后再close，但这么搞不太雅观。
+//uv_stop以后不能马上执行uv_loop_close()
+//貌似关闭及释放loop等资源不是很完善的样子
 void tinyweb_stop(uv_loop_t** loop)
 {
-	uv_walk(*loop, on_uv_walk,*loop);
-	uv_stop(*loop);
-	*loop = NULL;
+	uv_loop_t* l;
+	if (loop == NULL || *loop == NULL)
+		l = uv_default_loop();
+	else
+		l = *loop;
+	if (l) {
+		//uv_walk(l, on_uv_walk, l);
+		uv_stop(l);
+		uv_tcp_close(l,&_server);
+		uv_loop_close(l);
+	}
 }

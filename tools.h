@@ -208,19 +208,21 @@ typedef struct tm_u {
 	int tm_wday;    /*星期 days since Sunday - [0,6 0:周日] */
 	int tm_yday;    /*年中的天数 days since January 1 - [0,365] */
 	int tm_isdst;   /*夏令时标志 daylight savings time flag */
-	time_t tm_vsec; /*时间戳 seconds from 1900/1/1 0:0:0 */
+	long long tm_vsec; /*时间戳 seconds from 1900/1/1 0:0:0 */
 	int tm_usec;    /*微妙 microseconds */
 } tm_u;
 
 //获取当前时间信息
 tm_u GetLocaTime();
-//获取当天已逝去的秒数
-inline uint GetDaySecond();
-//字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
-inline time_t str2stmp(const char *strTime);
-//时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-inline char* stmp2str(time_t t, char* str, int strlen);
 
+//获取当天已逝去的秒数
+uint GetDaySecond();
+
+//字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
+long long str2stmp(const char *strTime);
+
+//时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
+char* stmp2str(long long t, char* str, int strlen);
 
 
 

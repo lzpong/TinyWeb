@@ -1,6 +1,8 @@
 ﻿//this file codes is for windows
 #ifdef _MSC_VER
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 #endif
 
 #ifdef _MSC_VER
@@ -250,7 +252,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 	FindClose(hFind);
 	//membuf_remove(&buf, buf.size-1, 1);
 	buf.data[--buf.size] = 0; buf.data[--buf.size] = 0;
-	sprintf(tmp, "],total:%d};\r\nif(files){var html=\"\", p=files.path[files.path.length-1];"
+	sprintf(tmp, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];"
 		"if(p!='/'){files.path+='/';}"
 		"files.files.sort(function(a,b){return a.name.localeCompare(b.name)}).sort(function(a,b){return a.type.localeCompare(b.type)});"
 		"for (var r in files.files)"
@@ -259,7 +261,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 			"html+=\"<tr><td>\"+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+\"</td><td>\"+r.size+\"</td><td>\"+r.mtime+\"</td></tr>\";"
 		"}"
 		"document.querySelector(\"tbody\").innerHTML = html;"
-		"}\r\n</script>\0\0", fnum);
+		"\r\n</script>\0\0", fnum);
 	//window下需要转换为UTF8编码，以发送给客户端
 	membuf_append_data(&buf,tmp,strlen(tmp));
 	membuf_trunc(&buf);
@@ -377,7 +379,7 @@ char* listDir(const char* fullpath, const char* pathinfo)
 	}
 	//membuf_remove(&buf, buf.size - 1, 1);
 	buf.data[--buf.size] = 0; buf.data[--buf.size] = 0;
-	sprintf(tmp, "],total:%d};\r\nif(files){var html=\"\", p=files.path[files.path.length-1];"
+	sprintf(tmp, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];"
 		"if(p!='/'){files.path+='/';}"
 		"files.files.sort(function(a,b){return a.name.localeCompare(b.name)}).sort(function(a,b){return a.type.localeCompare(b.type)});"
 		"for (var r in files.files)"
@@ -386,7 +388,7 @@ char* listDir(const char* fullpath, const char* pathinfo)
 		"html+=\"<tr><td>\"+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+\"</td><td>\"+r.size+\"</td><td>\"+r.mtime+\"</td></tr>\";"
 		"}"
 		"document.querySelector(\"tbody\").innerHTML = html;"
-		"}\r\n</script>\0\0", fnum);
+		"\r\n</script>\0\0", fnum);
 	membuf_append_data(&buf, tmp, strlen(tmp));
 	membuf_trunc(&buf);
 	return (char*)buf.data;
@@ -491,6 +493,7 @@ int enc_get_utf8_size(const unsigned char pInput)
 	if (c >= 0xF0 && c<0xF8) return 4;
 	if (c >= 0xF8 && c<0xFC) return 5;
 	if (c >= 0xFC) return 6;
+	return 1;
 }
 /*****************************************************************************
 * 将一个字符的UTF8编码转换成Unicode(UCS-2和UCS-4)编码.
@@ -599,7 +602,7 @@ char* enc_u2u8(char* data, uint* len) {
 	for (ulong i = 0; i <= *len; ) {
 		if (buf.buffer_size - buf.size < 7)
 			membuf_reserve(&buf, 7);
-		ch = data[i++] << 8 + data[i++];
+		ch = (data[i++] << 8) + data[i++];
 		t = enc_unicode_to_utf8_one(data[i], buf.data + buf.size, 7);
 		if (t == 0) break;
 		buf.size += t;
@@ -1448,6 +1451,45 @@ inline int day_of_year(int y, int m, int d)
 	return s;
 }
 
+
+//字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
+long long str2stmp(const char *strTime)
+{
+	struct tm sTime;
+	if (strTime != NULL)
+#ifdef __GNUC__
+		strptime(strTime, "%Y-%m-%d %H:%M:%S", &sTime);
+#else
+		sscanf(strTime, "%d-%d-%d %d:%d:%d", &sTime.tm_year, &sTime.tm_mon, &sTime.tm_mday, &sTime.tm_hour, &sTime.tm_min, &sTime.tm_sec);
+#endif
+	else
+	{
+		time_t timep;
+		timep = time(0);
+		sTime = *localtime(&timep);
+	}
+	sTime.tm_year -= 1900;
+	sTime.tm_mon -= 1;
+	long long ft = mktime(&sTime);
+	return ft * 1000;
+}
+
+//时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
+char* stmp2str(long long t, char* str, int strlen)
+{
+	if (t>1000)
+		t = t / 1000;
+	else
+	{
+		t = time(0);
+	}
+	struct tm *sTime = localtime(&t);
+	if (sTime)
+		strftime(str, strlen, "%Y-%m-%d %H:%M:%S", sTime);
+	return str;
+}
+
+
 #ifdef _MSC_VER
 //获取当前时间信息
 tm_u GetLocaTime()
@@ -1474,7 +1516,7 @@ tm_u GetLocaTime()
 	return tmu;
 }
 //获取当天已逝去的秒数
-inline uint GetDaySecond()
+uint GetDaySecond()
 {
 	SYSTEMTIME st;
 	GetLocalTime(&st);
@@ -1505,51 +1547,17 @@ tm_u GetLocaTime()
 	tmu.tm_usec = tv.tv_usec;
 	return tmu;
 }
+
 //获取当天已逝去的秒数
-inline uint GetDaySecond()
+uint GetDaySecond()
 {
 	struct timeval  tv;
 	gettimeofday(&tv, NULL);
-	return (tv.tv_sec%86400);
+	return (tv.tv_sec % 86400);
 }
 
 #endif // _MSC_VER
 
-//字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
-inline time_t str2stmp(const char *strTime)
-{
-	struct tm sTime;
-	if (strTime != NULL)
-#ifdef __GNUC__
-		strptime(strTime, "%Y-%m-%d %H:%M:%S", &sTime);
-#else
-		sscanf(strTime, "%d-%d-%d %d:%d:%d", &sTime.tm_year, &sTime.tm_mon, &sTime.tm_mday, &sTime.tm_hour, &sTime.tm_min, &sTime.tm_sec);
-#endif
-	else
-	{
-		time_t timep;
-		timep = time(0);
-		sTime = *localtime(&timep);
-	}
-	sTime.tm_year -= 1900;
-	sTime.tm_mon -= 1;
-	long long ft = mktime(&sTime);
-	return ft * 1000;
-}
-//时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-inline char* stmp2str(time_t t, char* str, int strlen)
-{
-	if (t>1000)
-		t = t / 1000;
-	else
-	{
-		t = time(0);
-	}
-	struct tm *sTime = localtime(&t);
-	if (sTime)
-		strftime(str, strlen, "%Y-%m-%d %H:%M:%S", sTime);
-	return str;
-}
 
 #ifdef _MSC_VER
 
