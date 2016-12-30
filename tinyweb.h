@@ -28,7 +28,7 @@
 
 #endif
 
-#include "../Plugin/Tools.h"
+#include "Tools.h"
 
 #if TinyWeb_Function_Description //TinyWeb功能说明
 
@@ -90,7 +90,7 @@ typedef struct {
 	//404前回调(未找到请求的文件/文件夹时回调,此功能便于程序返回自定义功能)
 	//返回0表示没有适合的处理请求，将自动发送404响应；否则认为已经处理
 	//heads成员不需要free
-	char (*on_request)(void* data, uv_stream_t* client, reqHeads heads);
+	char (*on_request)(void* data, uv_stream_t* client, reqHeads* heads);
 
 	//Socket 或 WebSocket 数据, 可以通过buf->flag判断
 	//buf成员不需要free

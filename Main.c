@@ -37,7 +37,7 @@ auth lzpong 2016/11/24
 
 
 //404前回调(未找到页面/文件时回调,此功能便于程序返回自定义功能)；返回0表示没有适合的处理请求，需要发送404错误
-char on_request(uv_stream_t* client, reqHeads heads)
+char on_request(void* data, uv_stream_t* client, reqHeads* heads)
 {
 	struct sockaddr_in serveraddr, peeraddr;
 	char serv_ip[17],peer_ip[17], tmp[1024];
@@ -53,7 +53,7 @@ char on_request(uv_stream_t* client, reqHeads heads)
 	//网络字节序转换成主机字符序
 	uv_ip4_name(&peeraddr, (char*)peer_ip, sizeof(peer_ip));
 
-	sprintf(tmp,"%s<br>%s<br>server：%s:%d\t\tpeer：%s:%d\n",heads.path, heads.query, serv_ip, ntohs(serveraddr.sin_port),peer_ip, ntohs(peeraddr.sin_port));
+	sprintf(tmp,"%s<br>%s<br>server：%s:%d\t\tpeer：%s:%d\n",heads->path, heads->query, serv_ip, ntohs(serveraddr.sin_port),peer_ip, ntohs(peeraddr.sin_port));
 #ifdef _MSC_VER //Windows下需要转换编码
 	size_t ll = strlen(tmp);
 	char *ch = GB2U8(tmp,&ll);
@@ -66,7 +66,7 @@ char on_request(uv_stream_t* client, reqHeads heads)
 	return 1;
 }
 
-char on_socket_data(uv_stream_t* client, membuf_t* buf)
+char on_socket_data(void* data, uv_stream_t* client, membuf_t* buf)
 {
 	if (buf->size < 1)
 		return 1;//防止发生数据为空

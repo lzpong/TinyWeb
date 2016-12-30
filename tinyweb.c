@@ -134,11 +134,11 @@ static void tw_404_not_found(uv_stream_t* client, const char* pathinfo) {
 }
 //发送301响应
 //
-static void tw_301_Moved(uv_stream_t* client, reqHeads heads) {
-	int len=76+strlen(heads.path);
+static void tw_301_Moved(uv_stream_t* client, reqHeads* heads) {
+	int len=76+strlen(heads->path);
 	char buffer[512];
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 301 Moved Permanently\r\nServer: TinyWeb\r\nLocation: HTTP://%s%s/\r\nConnection: close\r\n"
-		"Content-Type:text/html;charset=utf-8\r\nContent-Length:%d\r\n\r\n<h1>Moved Permanently</h1><p>The document has moved <a href=\"%s\">here</a>.</p>", heads.host, heads.path,len, heads.path);
+		"Content-Type:text/html;charset=utf-8\r\nContent-Length:%d\r\n\r\n<h1>Moved Permanently</h1><p>The document has moved <a href=\"%s\">here</a>.</p>", heads->host, heads->path,len, heads->path);
 	tw_send_data(client, buffer, -1, 1, 1);
 }
 
@@ -226,9 +226,9 @@ const char* tw_get_content_type(const char* fileExt) {
 //if not handle this request (by invoking write_uv_data()), you can close connection using tw_close_client(client).
 //pathinfo: "/" or "/book/view/1"
 //query_stirng: the string after '?' in url, such as "id=0&value=123", maybe NULL or ""
-static void tw_request(uv_stream_t* client, reqHeads heads) {
+static void tw_request(uv_stream_t* client, reqHeads* heads) {
 	char fullpath[260];//绝对路径（末尾不带斜杠）
-	sprintf(fullpath, "%s%s", tw_conf.doc_dir, (heads.path[0] == '/' ? heads.path + 1 : heads.path));
+	sprintf(fullpath, "%s%s", tw_conf.doc_dir, (heads->path[0] == '/' ? heads->path + 1 : heads->path));
 	//去掉末尾的斜杠
 	char *p = &fullpath[strlen(fullpath) - 1];
 	while (*p == '/' || *p == '\\')
@@ -243,7 +243,7 @@ static void tw_request(uv_stream_t* client, reqHeads heads) {
 	{
 	case 1://存在：文件
 	{
-		char* postfix = strrchr(heads.path, '.');//从后面开始找文件扩展名
+		char* postfix = strrchr(heads->path, '.');//从后面开始找文件扩展名
 		if (postfix)
 		{
 			postfix++;
@@ -254,12 +254,12 @@ static void tw_request(uv_stream_t* client, reqHeads heads) {
 				p--;
 			}
 		}
-		tw_http_send_file(client, postfix?tw_get_content_type(postfix):"application/octet-stream", fullpath, heads.path);
+		tw_http_send_file(client, postfix?tw_get_content_type(postfix):"application/octet-stream", fullpath, heads->path);
 	}
 	break;
 	case 2://存在：文件夹
 	{
-		if (heads.path[strlen(heads.path) - 1] != '/')
+		if (heads->path[strlen(heads->path) - 1] != '/')
 		{
 			tw_301_Moved(client, heads);
 			break;
@@ -278,7 +278,7 @@ static void tw_request(uv_stream_t* client, reqHeads heads) {
 
 			if (isFile(tmp))
 			{
-				tw_http_send_file(client, "text/html", tmp, heads.path);
+				tw_http_send_file(client, "text/html", tmp, heads->path);
 				break;
 			}
 			tmp[0] = 0;
@@ -290,7 +290,7 @@ static void tw_request(uv_stream_t* client, reqHeads heads) {
 		{
 			char *p = "Welcome to TinyWeb.<br>Directory access forbidden.";
 			if (tw_conf.dirlist) {
-				p = listDir(fullpath, heads.path);
+				p = listDir(fullpath, heads->path);
 #ifdef _MSC_VER //Windows下需要转换编码
 				unsigned int len = strlen(p);
 				char* p2 = GB2U8(p, &len);
@@ -309,7 +309,7 @@ static void tw_request(uv_stream_t* client, reqHeads heads) {
 	default://不存在
 		//http请求回调: 404前回调(未找到页面/文件时回调,此功能便于程序返回自定义功能)；返回0表示没有适合的处理请求，需要发送404错误
 		if ( !(tw_conf.on_request && tw_conf.on_request(tw_conf.data, client, heads)) )
-			tw_404_not_found(client, heads.path);
+			tw_404_not_found(client, heads->path);
 		break;
 	}
 }
@@ -484,11 +484,11 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 			}
 			else if (heads.method) { //HTTP
 				//所有请求全部回调
-				if (tw_conf.all_http_callback && tw_conf.on_request && !tw_conf.on_request(tw_conf.data, client, heads)){
+				if (tw_conf.all_http_callback && tw_conf.on_request && !tw_conf.on_request(tw_conf.data, client, &heads)){
 						tw_404_not_found(client, heads.path);
 				}
 				else
-					tw_request(client, heads);
+					tw_request(client, &heads);
 			}
 			else { //SOCKET
 				cliInfo->flag |= 1;//long-link
