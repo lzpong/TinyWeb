@@ -44,7 +44,7 @@ static void after_uv_close_client(uv_handle_t* client) {
 void tw_close_client(uv_stream_t* client) {
 	//关闭连接回调
 	if (tw_conf.on_close)
-		tw_conf.on_close(client, ((membuf_t*)client->data)->flag);
+		tw_conf.on_close(tw_conf.data, client, ((membuf_t*)client->data)->flag);
 	uv_close((uv_handle_t*)client, after_uv_close_client);
 }
 
@@ -308,7 +308,7 @@ static void tw_request(uv_stream_t* client, reqHeads heads) {
 		break;
 	default://不存在
 		//http请求回调: 404前回调(未找到页面/文件时回调,此功能便于程序返回自定义功能)；返回0表示没有适合的处理请求，需要发送404错误
-		if ( !(tw_conf.on_request && tw_conf.on_request(client, heads)) )
+		if ( !(tw_conf.on_request && tw_conf.on_request(tw_conf.data, client, heads)) )
 			tw_404_not_found(client, heads.path);
 		break;
 	}
@@ -406,7 +406,7 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 		case 2: //0x2表示二进制数据帧
 			//接收数据回调
 			if (tw_conf.on_data)
-				tw_conf.on_data(client, &hd->buf);
+				tw_conf.on_data(tw_conf.data, client, &hd->buf);
 			break;
 		case 3: case 4: case 5: case 6: case 7: //0x3 - 7暂时无定义，为以后的非控制帧保留			
 			if (hd->buf.data)
@@ -421,7 +421,7 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 					char errstr[60] = { 0 };
 					sprintf(errstr, "-0:wserr,%s", hd->buf.data + 2);
 					//出错信息回调
-					tw_conf.on_error(client, 0, errstr, cliInfo->flag);
+					tw_conf.on_error(tw_conf.data, client, 0, errstr, cliInfo->flag);
 				}
 				else
 					fprintf(stderr, "-0:wserr,%s\n", hd->buf.data + 2);
@@ -467,7 +467,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 			if (tw_conf.on_data){
 				membuf_clear(cliInfo, 0);
 				membuf_append_data(cliInfo, buf->base, nread);
-				tw_conf.on_data(client, cliInfo);
+				tw_conf.on_data(tw_conf.data, client, cliInfo);
 			}
 		}
 		//http 或 未知
@@ -484,7 +484,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 			}
 			else if (heads.method) { //HTTP
 				//所有请求全部回调
-				if (tw_conf.all_http_callback && tw_conf.on_request && !tw_conf.on_request(client, heads)){
+				if (tw_conf.all_http_callback && tw_conf.on_request && !tw_conf.on_request(tw_conf.data, client, heads)){
 						tw_404_not_found(client, heads.path);
 				}
 				else
@@ -496,7 +496,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 				if (tw_conf.on_data) {
 					membuf_clear(cliInfo, 0);
 					membuf_append_data(cliInfo, buf->base, nread);
-					tw_conf.on_data(client, cliInfo);
+					tw_conf.on_data(tw_conf.data, client, cliInfo);
 				}
 			}
 		}
@@ -507,7 +507,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 				char errstr[60] = { 0 };
 				sprintf(errstr, "%d:%s,%s", nread, uv_err_name((int)nread), uv_strerror((int)nread));
 				//出错信息回调
-				tw_conf.on_error(client, nread, errstr, cliInfo->flag);
+				tw_conf.on_error(tw_conf.data, client, nread, errstr, cliInfo->flag);
 			}
 			else
 				fprintf(stderr, "%d:%s,%s\n", nread, uv_err_name((int)nread), uv_strerror((int)nread));
@@ -543,7 +543,7 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 		uv_read_start((uv_stream_t*)client, on_uv_alloc, on_uv_read);
 		//客户端接入回调
 		if (tw_conf.on_connect)
-			tw_conf.on_connect((uv_stream_t*)client);
+			tw_conf.on_connect(tw_conf.data, (uv_stream_t*)client);
 	}
 }
 

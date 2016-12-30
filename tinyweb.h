@@ -28,7 +28,7 @@
 
 #endif
 
-#include "Tools.h"
+#include "../Plugin/Tools.h"
 
 #if TinyWeb_Function_Description //TinyWeb功能说明
 
@@ -81,26 +81,29 @@ typedef struct {
 	char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
 	short port;     //服务监听端口
 
+	//数据
+	void* data;//可以放入数数,如对象指针
+
 	//客户端接入
-	char (*on_connect)(uv_stream_t* client);
+	char (*on_connect)(void* data, uv_stream_t* client);
 
 	//404前回调(未找到请求的文件/文件夹时回调,此功能便于程序返回自定义功能)
 	//返回0表示没有适合的处理请求，将自动发送404响应；否则认为已经处理
 	//heads成员不需要free
-	char (*on_request)(uv_stream_t* client, reqHeads heads);
+	char (*on_request)(void* data, uv_stream_t* client, reqHeads heads);
 
 	//Socket 或 WebSocket 数据, 可以通过buf->flag判断
 	//buf成员不需要free
-	char (*on_data)(uv_stream_t* client, membuf_t* buf);
+	char (*on_data)(void* data, uv_stream_t* client, membuf_t* buf);
 
 	//Socket 检测到错误(此时链接可能已经断开)
 	//buf成员不需要free
 	//错误消息格式："%d:%s,%s,%s"
-	char (*on_error)(uv_stream_t* client,int errcode, char* errstr, int flag);
+	char (*on_error)(void* data, uv_stream_t* client,int errcode, char* errstr, int flag);
 
 	//Socket 关闭(此时链接可能已经断开)
 	//flag:标志字节 ([0~7]: [0]是否需要保持连接<非长连接为http> [1]是否WebSocket
-	char (*on_close)(uv_stream_t* client, int flag);
+	char (*on_close)(void* data, uv_stream_t* client, int flag);
 } tw_config;
 
 
