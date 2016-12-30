@@ -219,10 +219,10 @@ tm_u GetLocaTime();
 uint GetDaySecond();
 
 //字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
-long long str2stmp(const char *strTime);
+unsigned long long str2stmp(const char *strTime);
 
 //时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-char* stmp2str(long long t, char* str, int strlen);
+char* stmp2str(unsigned long long t, char* str, int strlen);
 
 
 

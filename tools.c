@@ -1453,7 +1453,7 @@ inline int day_of_year(int y, int m, int d)
 
 
 //字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
-long long str2stmp(const char *strTime)
+unsigned long long str2stmp(const char *strTime)
 {
 	struct tm sTime;
 	if (strTime != NULL)
@@ -1468,21 +1468,15 @@ long long str2stmp(const char *strTime)
 		timep = time(0);
 		sTime = *localtime(&timep);
 	}
-	sTime.tm_year -= 1900;
-	sTime.tm_mon -= 1;
-	long long ft = mktime(&sTime);
-	return ft * 1000;
+	unsigned long long ft = mktime(&sTime);
+	return ft ;
 }
 
 //时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-char* stmp2str(long long t, char* str, int strlen)
+char* stmp2str(unsigned long long t, char* str, int strlen)
 {
-	if (t>1000)
-		t = t / 1000;
-	else
-	{
+	if (t < 100000)
 		t = time(0);
-	}
 	struct tm *sTime = localtime(&t);
 	if (sTime)
 		strftime(str, strlen, "%Y-%m-%d %H:%M:%S", sTime);
