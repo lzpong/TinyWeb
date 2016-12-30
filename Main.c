@@ -115,8 +115,6 @@ int main(int argc, char** argv)
 	for (i = 0; i < argc; i++)
 		printf("arg[%d]:%s\n",i,argv[i]);
 
-	wchar_t* w = L"We范aA";
-
 	uv_loop_t* loop = uv_default_loop();
 	//配置TinyWeb
 	tw_config conf;
@@ -139,5 +137,6 @@ int main(int argc, char** argv)
 		if (strcmpi(cmd, "Q") || strcmpi(cmd, "exit"))
 			break;
 	}
+	tinyweb_stop(loop);
 	return 0;
 }
