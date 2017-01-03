@@ -16,7 +16,7 @@ auth lzpong 2016/11/24
 	b.支持其他静态文件：js,css,png,jpeg/jpg,gif,ico,txt,xml,json,log,wam,wav,mp3,apk
 	c.支持其他格式文件,默认文件类型为："application/octet-stream"
 	d.支持不带扩展名文件访问
-5.支持默认index页面(index.html/index.html)，可以自定义设置
+5.支持默认index页面(index.htm/index.html)，可以自定义设置
 6.支持目录列表
 7.支持Socket, WebSocket
 8.支持回调

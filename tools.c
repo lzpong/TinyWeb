@@ -34,6 +34,7 @@
 #include <memory.h>
 #include <string.h>
 #include <limits.h>
+#include <stdarg.h>
 
 //-----------------------------------------------------------------------------------membuf c-str  win/linux
 #pragma region membuf c-str
@@ -111,7 +112,20 @@ uint membuf_append_data(membuf_t* buf, const void* data, uint size) {
 	membuf_reserve(buf, size);
 	char* c=memmove(buf->data + buf->size, data, size);
 	buf->size += size;
-	return (buf->size - size);
+	return size;
+}
+//按格式添加数据
+uint membuf_append_format(membuf_t* buf, const char* fmt, ...) {
+	assert(fmt);
+	va_list ap, ap2;
+	va_start(ap, fmt);
+	int size = vsnprintf(0, 0, fmt, ap) + 1;
+	va_end(ap);
+	membuf_reserve(buf, size);
+	va_start(ap2, fmt);
+	vsnprintf(buf->data+buf->size, size, fmt, ap2);
+	va_end(ap2);
+	return size;	
 }
 //插入数据：offset位置，data数据，size数据大小
 void membuf_insert(membuf_t* buf, uint offset, void* data, uint size) {

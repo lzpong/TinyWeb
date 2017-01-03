@@ -26,6 +26,8 @@ void membuf_init(membuf_t* buf, uint initial_buffer_size);
 void membuf_uninit(membuf_t* buf);
 //添加数据
 uint membuf_append_data(membuf_t* buf, const void* data, uint size);
+//按格式添加数据
+uint membuf_append_format(membuf_t* buf, const char* fmt, ...);
 //插入数据：offset位置，data数据，size数据大小
 void membuf_insert(membuf_t* buf, uint offset, void* data, uint size);
 //从末尾移除数据（不会填充为NULL，仅更改size）

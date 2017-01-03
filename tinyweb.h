@@ -115,7 +115,7 @@ int tinyweb_start(uv_loop_t* loop, tw_config* conf);
 
 //stop TinyWeb
 //loop: if is NULL , it will be &uv_default_loop()
-void tinyweb_stop(uv_loop_t** loop);
+void tinyweb_stop(uv_loop_t* loop);
 
 //=================================================
 

@@ -634,17 +634,11 @@ int tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 //如果提前free掉loop就会导致loop失效。当然也可以sleep几十毫秒然后再close，但这么搞不太雅观。
 //uv_stop以后不能马上执行uv_loop_close()
 //貌似关闭及释放loop等资源不是很完善的样子
-void tinyweb_stop(uv_loop_t** loop)
+void tinyweb_stop(uv_loop_t* loop)
 {
-	uv_loop_t* l;
-	if (loop == NULL || *loop == NULL)
-		l = uv_default_loop();
-	else
-		l = *loop;
-	if (l) {
-		//uv_walk(l, on_uv_walk, l);
-		uv_stop(l);
-		uv_tcp_close(l,&_server);
-		uv_loop_close(l);
-	}
+	if (loop == NULL)
+		loop = uv_default_loop();
+	uv_stop(loop);
+	uv_tcp_close(loop,&_server);
+	uv_loop_close(loop);
 }
