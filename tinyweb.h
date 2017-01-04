@@ -151,8 +151,9 @@ void tw_close_client(uv_stream_t* client);
 
 
 inline void printx(const uchar* data, uint len) {
+	uint i;
 	printf("\n-----------------------------------------------\n");
-	for (uint i = 0; i < len; i++) {
+	for (i = 0; i < len; i++) {
 		if (i > 0 && i % 16 == 0)
 			printf("\n");
 		printf("%02x ", *data);

@@ -551,7 +551,7 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 //==================================================================================================
 
 //TinyWeb 线程开始运行
-static int tw_run(uv_loop_t* loop) {
+static void tw_run(uv_loop_t* loop) {
 	printf("TinyWeb v1.0.0 is started, listening on %s:%d...\n", tw_conf.ip, tw_conf.port);
 	uv_run(loop, UV_RUN_DEFAULT);
 	uv_stop(loop);
@@ -560,7 +560,6 @@ static int tw_run(uv_loop_t* loop) {
 	if (!uv_loop_close(loop) && loop != uv_default_loop())
 		free(loop);
 	printf("TinyWeb v1.0.0 is stoped, listening on %s:%d...\n", tw_conf.ip, tw_conf.port);
-	return 0;
 }
 
 //start web server, start with the config
