@@ -631,7 +631,7 @@ char* enc_u82u(char* data, uint* len) {
 	for (i = 0; i < *len;) {
 		if (buf.buffer_size - buf.size < 4)
 			membuf_reserve(&buf, 4);
-		t= enc_utf8_to_unicode_one(data + i, buf.data + buf.size);
+		t= enc_utf8_to_unicode_one(data + i, (uint*)(buf.data + buf.size));
 		if (t == 0) break;
 		buf.size += 2;
 		i += t;
