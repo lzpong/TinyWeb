@@ -608,15 +608,13 @@ int enc_utf8_to_unicode_one(const uchar* pInput, uint *Unic)
 }
 
 char* enc_u2u8(char* data, uint* len) {
-	int t;
-	uint ch;
+	uint t,i;
 	membuf_t buf;
 	membuf_init(&buf, 128);
 	*len--;
-	for (ulong i = 0; i <= *len; ) {
+	for (i = 0; i <= *len;) {
 		if (buf.buffer_size - buf.size < 7)
 			membuf_reserve(&buf, 7);
-		ch = (data[i++] << 8) + data[i++];
 		t = enc_unicode_to_utf8_one(data[i], buf.data + buf.size, 7);
 		if (t == 0) break;
 		buf.size += t;
@@ -627,10 +625,10 @@ char* enc_u2u8(char* data, uint* len) {
 }
 
 char* enc_u82u(char* data, uint* len) {
-	int t;
+	uint t,i;
 	membuf_t buf;
 	membuf_init(&buf, 128);
-	for (uint i = 0; i < *len;) {
+	for (i = 0; i < *len;) {
 		if (buf.buffer_size - buf.size < 4)
 			membuf_reserve(&buf, 4);
 		t= enc_utf8_to_unicode_one(data + i, buf.data + buf.size);
@@ -718,7 +716,7 @@ uint code_convert(char *from_charset, char *to_charset, char *inbuf, uint inlen,
 	if (cd == 0)
 		return -1;
 	memset(outbuf, 0, len);
-	if (iconv(cd, pin, &inlen, pout, &len) == -1)
+	if (iconv(cd, pin, (size_t*)&inlen, pout, (size_t*)&len) == -1)
 		rc = -1;
 	iconv_close(cd);
 	*outlen -= len;//返回已用长度
@@ -1467,7 +1465,7 @@ inline int day_of_year(int y, int m, int d)
 
 
 //字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
-unsigned long long str2stmp(const char *strTime)
+ullong str2stmp(const char *strTime)
 {
 	struct tm sTime;
 	if (strTime != NULL)
@@ -1487,11 +1485,11 @@ unsigned long long str2stmp(const char *strTime)
 }
 
 //时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-char* stmp2str(unsigned long long t, char* str, int strlen)
+char* stmp2str(ullong t, char* str, int strlen)
 {
 	if (t < 100000)
 		t = time(0);
-	struct tm *sTime = localtime(&t);
+	struct tm *sTime = localtime((time_t*)&t);
 	if (sTime)
 		strftime(str, strlen, "%Y-%m-%d %H:%M:%S", sTime);
 	return str;
