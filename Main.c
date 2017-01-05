@@ -43,26 +43,30 @@ char on_request(void* data, uv_stream_t* client, reqHeads* heads)
 	char serv_ip[17],peer_ip[17], tmp[1024];
 	int addrlen = sizeof(struct sockaddr);
 	int r;
-	//获取clientAddr: http://www.codes51.com/article/detail_113112.html
-	//本地接入地址
-	r = uv_tcp_getsockname((uv_tcp_t*)client, (struct sockaddr*)&serveraddr, &addrlen);
-	//网络字节序转换成主机字符序
-	uv_ip4_name(&serveraddr, (char*)serv_ip, sizeof(serv_ip));
-	//客户端的地址
-	r = uv_tcp_getpeername((uv_tcp_t*)client, (struct sockaddr*)&peeraddr, &addrlen);
-	//网络字节序转换成主机字符序
-	uv_ip4_name(&peeraddr, (char*)peer_ip, sizeof(peer_ip));
+	if(strcmpi(heads->path,"/json")==0){
+		tw_send_200_OK(client, "text/json", "{\"json\":\"text/json\"}", -1, 0);
+	}
+	else {
+		//获取clientAddr: http://www.codes51.com/article/detail_113112.html
+		//本地接入地址
+		r = uv_tcp_getsockname((uv_tcp_t*)client, (struct sockaddr*)&serveraddr, &addrlen);
+		//网络字节序转换成主机字符序
+		uv_ip4_name(&serveraddr, (char*)serv_ip, sizeof(serv_ip));
+		//客户端的地址
+		r = uv_tcp_getpeername((uv_tcp_t*)client, (struct sockaddr*)&peeraddr, &addrlen);
+		//网络字节序转换成主机字符序
+		uv_ip4_name(&peeraddr, (char*)peer_ip, sizeof(peer_ip));
 
-	sprintf(tmp,"%s<br>%s<br>server：%s:%d\t\tpeer：%s:%d\n",heads->path, heads->query, serv_ip, ntohs(serveraddr.sin_port),peer_ip, ntohs(peeraddr.sin_port));
+		sprintf(tmp, "%s<br>%s<br>server：%s:%d\t\tpeer：%s:%d\n", heads->path, heads->query, serv_ip, ntohs(serveraddr.sin_port), peer_ip, ntohs(peeraddr.sin_port));
 #ifdef _MSC_VER //Windows下需要转换编码
-	size_t ll = strlen(tmp);
-	char *ch = GB2U8(tmp,&ll);
-	tw_send_200_OK(client, "text/html", ch, -1, 0);
-	free(ch);
+		size_t ll = strlen(tmp);
+		char *ch = GB2U8(tmp, &ll);
+		tw_send_200_OK(client, "text/html", ch, -1, 0);
+		free(ch);
 #else //linux 下，系统是和源代码文件编码都是是utf8的，就不需要转换
-	tw_send_200_OK(client, "text/html", tmp, -1, 0);
+		tw_send_200_OK(client, "text/html", tmp, -1, 0);
 #endif // _MSC_VER
-
+	}
 	return 1;
 }
 
@@ -70,7 +74,7 @@ char on_socket_data(void* data, uv_stream_t* client, membuf_t* buf)
 {
 	if (buf->size < 1)
 		return 1;//防止发生数据为空
-	if (buf->flag & 0x3) {
+	if (buf->flag & 0x2) { //WebSocket
 		printx(buf->data, buf->size < 256 ? buf->size : 256);
 #ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
 		if (buf->flag & 0x4) {
@@ -88,23 +92,22 @@ char on_socket_data(void* data, uv_stream_t* client, membuf_t* buf)
 			uc = enc_u82u(buf->data, &len);
 			len /= 2;
 			gb = U2GB((wchar_t *)uc, &len);
-			printf("ws1:%s\nlen=%d\n", gb, len);
+			printf("-------------------------------------------ws1:len=%d\n%s\n-------------------------------------------\n", len, gb);
 			free(uc);
 			free(gb);
 		}else
 		//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
 #endif // _MSC_VER
-			printf("ws:%s\nlen=%d\n", buf->data,buf->size);
+			printf("-------------------------------------------ws:len=%d\n%s\n-------------------------------------------\n", buf->size, buf->data);
 		unsigned long len = buf->size;
 		char* p = WebSocketMakeFrame(buf->data, &len, 1);//文本帧
 		tw_send_data(client, p, len, 0, 1);
-	} else {
-		printf("sk:%s\nlen=%d\n", buf->data,buf->size);
+	} else { //Socket
+		printf("-------------------------------------------sk:len=%d\n%s\n-------------------------------------------\n", buf->size, buf->data);
 		tw_send_data(client, buf->data, buf->size, 1, 0);
 	}
 	return 1;
 }
-
 
 
 
@@ -133,8 +136,8 @@ int main(int argc, char** argv)
 	tinyweb_start(loop, &conf);
 	//
 	while (1) {
-		gets(cmd);
-		if (strcmpi(cmd, "Q") || strcmpi(cmd, "exit"))
+		fgets(cmd, 10, stdin);//the 'gets' function is dangerous and should not be used
+		if (strcmpi(cmd, "Q")==0 || strcmpi(cmd, "exit")==0)
 			break;
 	}
 	tinyweb_stop(loop);

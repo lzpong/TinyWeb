@@ -92,7 +92,28 @@ void tw_send_data(uv_stream_t* client, const void* data, unsigned int len, int n
 void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u8data, int content_length, int* respone_size)
 {
 	int repSize;
-	char *data = tw_format_http_respone("200 OK", "text/html", u8data, content_length, &repSize);
+	const char *p=strchr(content_type,'/');
+	//有'.'    没有'/'   至少有两个'/'    '/'是在开头    '/'是在末尾
+	//都要重新取文件类型
+	if (p) {
+		if(strchr(content_type, '.'))// 有'.'
+			p = tw_get_content_type(content_type);
+		else {
+			p = strchr(p + 1, '/');
+			if (p)//至少有两个'/'
+				p = tw_get_content_type(content_type);
+			else {
+				p = strchr(content_type, '/');
+				if (p == content_type || p == (content_type + strlen(content_type) - 1))
+					p = tw_get_content_type(content_type);
+				else
+					p = content_type;
+			}
+		}
+	}//没有'/'
+	else
+		p = tw_get_content_type(content_type);
+	char *data = tw_format_http_respone("200 OK", p, u8data, content_length, &repSize);
 	tw_send_data(client, data, repSize, 0, 1);//发送后free data
 	if (respone_size)
 		*respone_size = repSize;
@@ -175,17 +196,14 @@ const char* tw_get_content_type(const char* fileExt) {
 	const static char* octet = "application/octet-stream";
 	if (fileExt)
 	{
-		// txt    /aaa/txt    /txt   aaa.txt     /aaa/aa.txt
-		const char* p2 = strrchr(fileExt, '\\');
-		if (p2 == NULL) p2 = strrchr(fileExt, '/');
-		if (p2)
-		{
-			const char* p = strrchr(fileExt, '.');
-			if (p) { //"/a/txt"
-				fileExt = p;
-			}
+		//不管什么路径名或者文件名, 只要最后面有点(.),就认为是有扩展名的
+		const char *p = strrchr(fileExt, '.');
+		if (p) { // /aaa.txt
+			fileExt = p+1;
 		}
 	}
+	else //否则没有扩展名
+		return octet;
 	if (strcmpi(fileExt, "htm") == 0 || strcmpi(fileExt, "html") == 0)
 		return "text/html";
 	else if (strcmpi(fileExt, "js") == 0)
@@ -366,6 +384,43 @@ static char* tw_get_http_heads(const uv_buf_t* buf, reqHeads* heads) {
 			else {  //POST
 				heads->query = heads->data;
 			}
+			////------------尽可能的合并 "../"  "/./"
+			//确保开头为'/'
+			if (*heads->path != '/') {
+				heads->path--;
+				*heads->path = '/';
+				*(heads->path - 1) = 0;
+			}
+			//确保结尾不是"/.."
+			end = strrchr(heads->path, '.');
+			if (*(end + 1) == 0 && *(end - 1) == '.' && *(end - 2) == '/'){
+				*(end + 1) = '/';
+				*(end + 2) = 0;
+			}
+			//去掉"/./"
+			while (p = strstr(heads->path, "/./")) {
+				memmove(p, p+2, strlen(p+2) + 1);
+			}
+			//尽可能的合并"../"
+			while (p = strstr(heads->path, "/..")) {//存在 ..
+				if ((p - heads->path) <= 1) {
+					if (end = strchr(heads->path + 2, '/'))
+						heads->path = end;
+					else
+						*p = 0;
+					continue;
+				}
+				*(p - 1) = 0;
+				end = strrchr(heads->path, '/');
+				if (end == NULL)
+					end = heads->path;
+				key = strchr(p + 2, '/');
+				if (key)
+					p = key;
+				else
+					break;
+				memmove(end, p, strlen(p) + 1);
+			}
 			//search host
 			heads->host = strstr(end + 4, "Host:");
 			if (heads->host) {
@@ -394,7 +449,6 @@ static void on_read_websocket(uv_stream_t* client, membuf_t* cliInfo,char* data,
 	if (NULL == hd->buf.data)
 		membuf_init(&hd->buf, 128);
 	hd->buf.flag = cliInfo->flag;
-	//printx(data, 16);
 	unsigned long leftlen = WebSocketGetData(hd, data, Len);
 	if (hd->isEof)
 	{
@@ -475,7 +529,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 			char* p,*p2;
 			reqHeads heads;
 			memset(&heads, 0, sizeof(reqHeads));
-			p=tw_get_http_heads(buf, &heads);
+			p=tw_get_http_heads(buf, &heads);//get Sec-WebSocket-Key ?
 			if (p) { //WebSocket 握手
 				cliInfo->flag |= 3;//long-link & WebSocket
 				p2=WebSocketHandShak(p);
@@ -623,10 +677,12 @@ int tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 		return ret;
 	//开始线程
 	uv_thread_t hare_id;
-	uv_thread_create(&hare_id, tw_run, loop);
+	uv_thread_create(&hare_id, (uv_thread_cb)tw_run, loop);
 	return 0;
 }
 
+static void on_close_cb(uv_handle_t* handle) {
+}
 
 //stop TinyWeb
 //当执行uv_stop之后，uv_run并不能马上退出，而是要等待其内部循环的下一个iteration到来时才会退出；
@@ -638,6 +694,6 @@ void tinyweb_stop(uv_loop_t* loop)
 	if (loop == NULL)
 		loop = uv_default_loop();
 	uv_stop(loop);
-	uv_tcp_close(loop,&_server);
+	uv_close((uv_handle_t*)&_server, on_close_cb);
 	uv_loop_close(loop);
 }
