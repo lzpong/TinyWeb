@@ -54,5 +54,4 @@ other congfig items see `struct tw_config` in tinyweb.h
 ```
 //启动TinyWeb
 tinyweb_start(uv_default_loop(), &conf);
-uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 ```
