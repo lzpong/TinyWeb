@@ -246,6 +246,11 @@ const char* tw_get_content_type(const char* fileExt) {
 //query_stirng: the string after '?' in url, such as "id=0&value=123", maybe NULL or ""
 static void tw_request(uv_stream_t* client, reqHeads* heads) {
 	char fullpath[260];//绝对路径（末尾不带斜杠）
+	//不允许访问根目录上级
+	if (strstr(heads->path, "/..") == heads->path){
+		heads->path[2] = 0;
+		tw_301_Moved(client, heads);
+	}
 	sprintf(fullpath, "%s%s", tw_conf.doc_dir, (heads->path[0] == '/' ? heads->path + 1 : heads->path));
 	//去掉末尾的斜杠
 	char *p = &fullpath[strlen(fullpath) - 1];
