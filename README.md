@@ -7,7 +7,7 @@ TinyWeb功能说明
 auth lzpong 2016/11/24
 功能基于 libuv 跨平台库
 
-0.默认编码为 utf-8
+0.支持设置文档编码,默认 utf-8
 1.支持使用HTTP: GET/POST方式访问
 2.支持Socket, WebSocket 连接
 3.支持返回404错误页面
