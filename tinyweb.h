@@ -4,7 +4,9 @@
 
 #ifdef _MSC_VER
 //去掉 warning C4996: '***': The POSIX name for this item is deprecated.Instead, use the ISO C++ conformant name...
+#ifndef _CRT_NONSTDC_NO_DEPRECATE
 #define _CRT_NONSTDC_NO_DEPRECATE
+#endif
 #ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -32,7 +34,7 @@
 
 #if TinyWeb_Function_Description //TinyWeb功能说明
 
-auth lzpong 2016 / 11 / 24
+auth lzpong 2016/11/24
 功能基于 libuv 跨平台库
 
 0.默认编码为 utf-8
@@ -64,7 +66,7 @@ auth lzpong 2016 / 11 / 24
 extern "C" {
 #endif
 
-typedef struct {
+typedef struct reqHeads {
 	char method;//0:Socket 1:GET 2:POST
 	char* host; //IP:port
 	char* path; //路径
@@ -74,16 +76,16 @@ typedef struct {
 }reqHeads;
 
 //服务配置
-typedef struct {
+typedef struct tw_config {
 	char dirlist:1; //是否允许列出目录
 	char all_http_callback:1;//是否全部http访问都回调,http update to websocket 除外
 	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
 	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
 	char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
 	short port;     //服务监听端口
-
+	char* charset;  //文档编码(默认utf-8)
 	//数据
-	void* data;//可以放入数数,如对象指针
+	void* data;//用户数据,如对象指针
 
 	//客户端接入
 	char (*on_connect)(void* data, uv_stream_t* client);

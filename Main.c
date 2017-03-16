@@ -57,7 +57,7 @@ char on_request(void* data, uv_stream_t* client, reqHeads* heads)
 		//网络字节序转换成主机字符序
 		uv_ip4_name(&peeraddr, (char*)peer_ip, sizeof(peer_ip));
 
-		sprintf(tmp, "%s<br>%s<br>server：%s:%d\t\tpeer：%s:%d\n", heads->path, heads->query, serv_ip, ntohs(serveraddr.sin_port), peer_ip, ntohs(peeraddr.sin_port));
+		sprintf(tmp, "<h1>Page not found:</h1><url>%s<br>%s<br></url><br><br><br><i>server：%s:%d\t\tpeer：%s:%d</i>\n", heads->path, (heads->query?heads->query:""), serv_ip, ntohs(serveraddr.sin_port), peer_ip, ntohs(peeraddr.sin_port));
 #ifdef _MSC_VER //Windows下需要转换编码
 		size_t ll = strlen(tmp);
 		char *ch = GB2U8(tmp, &ll);

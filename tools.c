@@ -6,6 +6,9 @@
 #endif
 
 #ifdef _MSC_VER
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif // !WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <time.h>
 
@@ -90,7 +93,7 @@ void membuf_reserve(membuf_t* buf, uint extra_size) {
 		assert(p);
 		if (p != buf->data)
 			buf->data = p;
-		memset(buf->data + buf->size, 0, new_buffer_size - buf->size);
+		memset((buf->data + buf->size), 0, new_buffer_size - buf->size);
 		buf->buffer_size = new_buffer_size;
 	}
 }
@@ -102,7 +105,7 @@ void membuf_trunc(membuf_t* buf) {
 		assert(p);
 		if (p && p != buf->data)
 			buf->data = p;
-		memset(buf->data + buf->size, 0, 4);
+		memset((buf->data + buf->size), 0, 4);
 		buf->buffer_size = buf->size + 4;
 	}
 }
@@ -110,7 +113,7 @@ void membuf_trunc(membuf_t* buf) {
 uint membuf_append_data(membuf_t* buf, const void* data, uint size) {
 	assert(data && size > 0);
 	membuf_reserve(buf, size);
-	char* c=memmove(buf->data + buf->size, data, size);
+	memmove((buf->data + buf->size), data, size);
 	buf->size += size;
 	return size;
 }
@@ -123,16 +126,16 @@ uint membuf_append_format(membuf_t* buf, const char* fmt, ...) {
 	va_end(ap);
 	membuf_reserve(buf, size);
 	va_start(ap2, fmt);
-	vsnprintf(buf->data+buf->size, size, fmt, ap2);
+	vsnprintf((char*)(buf->data + buf->size), size, fmt, ap2);
 	va_end(ap2);
-	return size;	
+	return size;
 }
 //插入数据：offset位置，data数据，size数据大小
 void membuf_insert(membuf_t* buf, uint offset, void* data, uint size) {
 	assert(offset < buf->size);
 	membuf_reserve(buf, size);
-	memcpy(buf->data + offset + size, buf->data + offset, buf->size - offset);
-	memcpy(buf->data + offset, data, size);
+	memcpy((buf->data + offset + size), buf->data + offset, buf->size - offset);
+	memcpy((buf->data + offset), data, size);
 	buf->size += size;
 }
 //从末尾移除数据（不会填充为NULL，仅更改size）
@@ -142,7 +145,7 @@ void membuf_remove(membuf_t* buf, uint offset, uint size) {
 		buf->size = offset;
 	}
 	else {
-		memmove(buf->data + offset, buf->data + offset + size, buf->size - offset - size);
+		memmove((buf->data + offset), buf->data + offset + size, buf->size - offset - size);
 		buf->size -= size;
 	}
 	if (buf->buffer_size >= buf->size)
@@ -220,9 +223,9 @@ char* listDir(const char* fullpath, const char* reqPath)
 	sprintf(tmp, "<html><head><title>Index of %s</title>\r\n"
 		"</head><body><h1>Index of %s</h1>\r\n"
 		"<table>\r\n"
-		"<thead><tr><th>@</th><th><a href=\"#\">Name</a></th><th><a href=\"#\">Size</a></th><th><a href=\"#\">Last modified</a></th></tr><tr><th colspan=\"4\"><hr></th></tr></thead>\r\n"
+		"<thead><tr><th><a href=\"javascript:fssort('type')\">@</a></th><th><a href=\"javascript:fssort('name')\">Name</a></th><th><a href=\"javascript:fssort('size')\">Size</a></th><th><a href=\"javascript:fssort('mtime')\">Last modified</a></th></tr><tr><th colspan=\"4\"><hr></th></tr></thead>\r\n"
 		"<tbody id=\"tbody\"></tbody>"
-		"<tfoot><tr><th colspan=\"4\"><hr></th></tr></tfoot>"
+		"<tfoot><tr><th colspan=\"4\"><hr style=\"margin:1px;\"></th></tr></tfoot>"
 		"</table>"
 		"<address>TinyWeb Server</address>"
 		"</body></tml>\r\n<script type=\"text/javascript\">\r\nvar files={\"path\":\"%s\",\"files\":[\r\n\0\0", reqPath, reqPath, reqPath);
@@ -256,6 +259,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 		}
 		else //文件
 		{
+			fnum++;
 			sz = fdt.nFileSizeHigh*(MAXDWORD + 1) + fdt.nFileSizeLow; //#define MAXDWORD    0xffffffff
 			sprintf(tmp,"{\"name\":\"%s\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":%ld,\"type\":\"F\"},\n", fdt.cFileName, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, sz);
 		}
@@ -266,16 +270,13 @@ char* listDir(const char* fullpath, const char* reqPath)
 	FindClose(hFind);
 	//membuf_remove(&buf, buf.size-1, 1);
 	buf.data[--buf.size] = 0; buf.data[--buf.size] = 0;
-	sprintf(tmp, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];"
-		"if(p!='/'){files.path+='/';}"
-		"files.files.sort(function(a,b){return a.name.localeCompare(b.name)}).sort(function(a,b){return a.type.localeCompare(b.type)});"
-		"for (var r in files.files)"
-		"{"
-			"r=files.files[r];"
-			"html+=\"<tr><td>\"+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+\"</td><td>\"+r.size+\"</td><td>\"+r.mtime+\"</td></tr>\";"
-		"}"
-		"document.querySelector(\"tbody\").innerHTML = html;"
-		"\r\n</script>\0\0", fnum);
+	sprintf(tmp, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];\n"
+		"function fsshow(){var html='';for (var r in files.files){r=files.files[r];html+='<tr><td>'+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+'</td><td>'+r.size+'</td><td>'+r.mtime+'</td></tr>';}document.querySelector('tbody').innerHTML = html;}\n"
+		"if(p!='/'){files.path+='/';}\n"
+		"files.files.sort(function(a,b){var n=a.type.localeCompare(b.type);if(n)return n;else return a.name.localeCompare(b.name);});\n"
+		"fsshow();\n"
+		"function fssort(n){files.files.sort(function(a,b){if(typeof a[n]=='number')return a[n]-b[n];return a[n].localeCompare(b[n])});fsshow();}\n"
+		"</script>\0\0", fnum);
 	//window下需要转换为UTF8编码，以发送给客户端
 	membuf_append_data(&buf,tmp,strlen(tmp));
 	membuf_trunc(&buf);
@@ -363,9 +364,9 @@ char* listDir(const char* fullpath, const char* pathinfo)
 	sprintf(tmp, "<html><head><title>Index of %s</title>\r\n"
 		"</head><body><h1>Index of %s</h1>\r\n"
 		"<table>\r\n"
-		"<thead><tr><th>@</th><th><a id=\"fname\" href=\"#\">Name</a></th><th><a id=\"fsize\" href=\"#\">Size</a></th><th><a id=\"ftime\" href=\"#\">Last modified</a></th></tr><tr><th colspan=\"4\"><hr></th></tr></thead>\r\n"
+		"<thead><tr><th><a href=\"javascript:fssort('type')\">@</a></th><th><a href=\"javascript:fssort('name')\">Name</a></th><th><a href=\"javascript:fssort('size')\">Size</a></th><th><a href=\"javascript:fssort('mtime')\">Last modified</a></th></tr><tr><th colspan=\"4\"><hr></th></tr></thead>\r\n"
 		"<tbody id=\"tbody\"></tbody>"
-		"<tfoot><tr><th colspan=\"4\"><hr></th></tr></tfoot>"
+		"<tfoot><tr><th colspan=\"4\"><hr style=\"margin:1px;\"></th></tr></tfoot>"
 		"</table>"
 		"<address>TinyWeb Server</address>"
 		"</body></tml>\r\n<script type=\"text/javascript\">\r\nvar files={\"path\":\"%s\",\"files\":[\r\n\0\0", pathinfo, pathinfo, pathinfo);
@@ -386,7 +387,7 @@ char* listDir(const char* fullpath, const char* pathinfo)
 				sprintf(tmp, "{\"name\":\"%s/\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":\"-\",\"type\":\"D\"},\n", fileInfo->d_name, (1900 + mtime->tm_year), (1 + mtime->tm_mon), mtime->tm_mday, mtime->tm_hour, mtime->tm_min, mtime->tm_sec);
 			}
 			else
-				sprintf(tmp, "{\"name\":\"%s\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":%ld,\"type\":\"F\"},\n", fileInfo->d_name, (1900 + mtime->tm_year), (1 + mtime->tm_mon), mtime->tm_mday, mtime->tm_hour, mtime->tm_min, mtime->tm_sec, statbuf.st_size);
+				fnum++,sprintf(tmp, "{\"name\":\"%s\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":%ld,\"type\":\"F\"},\n", fileInfo->d_name, (1900 + mtime->tm_year), (1 + mtime->tm_mon), mtime->tm_mday, mtime->tm_hour, mtime->tm_min, mtime->tm_sec, statbuf.st_size);
 			membuf_append_data(&buf, tmp, strlen(tmp));
 		}
 		closedir(dp);
@@ -394,15 +395,12 @@ char* listDir(const char* fullpath, const char* pathinfo)
 	//membuf_remove(&buf, buf.size - 1, 1);
 	buf.data[--buf.size] = 0; buf.data[--buf.size] = 0;
 	sprintf(tmp, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];"
-		"if(p!='/'){files.path+='/';}"
-		"files.files.sort(function(a,b){return a.name.localeCompare(b.name)}).sort(function(a,b){return a.type.localeCompare(b.type)});"
-		"for (var r in files.files)"
-		"{"
-		"r=files.files[r];"
-		"html+=\"<tr><td>\"+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+\"</td><td>\"+r.size+\"</td><td>\"+r.mtime+\"</td></tr>\";"
-		"}"
-		"document.querySelector(\"tbody\").innerHTML = html;"
-		"\r\n</script>\0\0", fnum);
+		"function fsshow(){var html='';for (var r in files.files){r=files.files[r];html+='<tr><td>'+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+'</td><td>'+r.size+'</td><td>'+r.mtime+'</td></tr>';}document.querySelector('tbody').innerHTML = html;}\n"
+		"if(p!='/'){files.path+='/';}\n"
+		"files.files.sort(function(a,b){var n=a.type.localeCompare(b.type);if(n)return n;else return a.name.localeCompare(b.name);});\n"
+		"fsshow();\n"
+		"function fssort(n){files.files.sort(function(a,b){if(typeof a[n]=='number')return a[n]-b[n];return a[n].localeCompare(b[n])});fsshow();}\n"
+		"</script>\0\0", fnum);
 	membuf_append_data(&buf, tmp, strlen(tmp));
 	membuf_trunc(&buf);
 	return (char*)buf.data;
@@ -611,17 +609,17 @@ char* enc_u2u8(char* data, uint* len) {
 	uint t,i;
 	membuf_t buf;
 	membuf_init(&buf, 128);
-	*len--;
-	for (i = 0; i <= *len;) {
+	(*len)--;
+	for ( i = 0; i <= *len; ) {
 		if (buf.buffer_size - buf.size < 7)
 			membuf_reserve(&buf, 7);
-		t = enc_unicode_to_utf8_one(data[i], buf.data + buf.size, 7);
+		t = enc_unicode_to_utf8_one(*(uint*)(data + i), (buf.data + buf.size), 7);
 		if (t == 0) break;
 		buf.size += t;
 	}
 	membuf_trunc(&buf);
 	*len = buf.size;
-	return buf.data;
+	return (char*)buf.data;
 }
 
 char* enc_u82u(char* data, uint* len) {
@@ -631,14 +629,14 @@ char* enc_u82u(char* data, uint* len) {
 	for (i = 0; i < *len;) {
 		if (buf.buffer_size - buf.size < 4)
 			membuf_reserve(&buf, 4);
-		t= enc_utf8_to_unicode_one(data + i, (uint*)(buf.data + buf.size));
+		t= enc_utf8_to_unicode_one((uchar*)(data + i), (uint*)(buf.data + buf.size));
 		if (t == 0) break;
 		buf.size += 2;
 		i += t;
 	}
 	membuf_trunc(&buf);
 	*len = buf.size;
-	return buf.data;
+	return (char*)buf.data;
 }
 
 
@@ -843,7 +841,6 @@ char* url_encode(const char *url, uint* len)
 		return NULL;
 	membuf_t buf;
 	const char *p;
-	uint x = 0;
 	const char urlunsafe[] = "\r\n \"#%&+:;<=>?@[\\]^`{|}";
 	const char hex[] = "0123456789ABCDEF";
 	char enc[3] = {'%',0,0};
@@ -1334,7 +1331,7 @@ ulong WebSocketGetData(WebSocketHandle* handle, char* data, ulong len)
 				tLen = len - 6;
 				Len = (Len>0 && Len > tLen) ? tLen : Len;
 				membuf_append_data(buf, &data[6], Len);
-				WebSocketDoMask(buf->data + buf->size - Len, Len, Mask);
+				WebSocketDoMask((char*)(buf->data + buf->size - Len), Len, Mask);
 			}
 		}
 		else //没用掩码
@@ -1356,7 +1353,7 @@ ulong WebSocketGetData(WebSocketHandle* handle, char* data, ulong len)
 				tLen = len - 8;
 				Len = (Len>0 && Len > tLen) ? tLen : Len;
 				membuf_append_data(buf, &data[8], Len);
-				WebSocketDoMask(buf->data + buf->size - Len, Len, Mask);
+				WebSocketDoMask((char*)(buf->data + buf->size - Len), Len, Mask);
 			}
 		}
 		else //没用掩码
@@ -1380,7 +1377,7 @@ ulong WebSocketGetData(WebSocketHandle* handle, char* data, ulong len)
 				tLen = len - 14;
 				Len = Len > tLen ? tLen : Len;
 				membuf_append_data(buf, &data[14], Len);
-				WebSocketDoMask(buf->data + buf->size - Len, Len, Mask);
+				WebSocketDoMask((char*)(buf->data + buf->size - Len), Len, Mask);
 			}
 		}
 		else //没用掩码
@@ -1402,18 +1399,15 @@ char* WebSocketMakeFrame(const char* data, ulong* dlen,uchar op)
 	membuf_init(&buf, 129);
 	//第一byte,10000000, fin = 1, rsv1 rsv2 rsv3均为0, opcode = 0x01,即数据为文本帧
 	buf.data[0] = 0x80+op;//0x81 最后一个包 |(无扩展协议)| 控制码(0x1表示文本帧)
-	uchar len;
 	if (*dlen > 0) { //要有数据
 		if (*dlen <= 125)
 		{
-			len = (uchar)*dlen;
 			//数据长度
 			buf.data[1] = (uchar)*dlen;
 			buf.size = 2;
 		}
 		else if (*dlen <= 65535)
 		{
-			len = 126;
 			buf.data[1] = 0x7E;
 			//数据长度
 			buf.data[2] = (*dlen >> 8) & 255;
@@ -1422,7 +1416,6 @@ char* WebSocketMakeFrame(const char* data, ulong* dlen,uchar op)
 		}
 		else
 		{
-			len = 127;
 			buf.data[1] = 0x7F;
 			//数据长度,前4字节留空,保存32位数据大小
 			//buf.data[2] = (*dlen >> 56) & 255;
@@ -1464,36 +1457,38 @@ inline int day_of_year(int y, int m, int d)
 }
 
 
-//字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
+//字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
 ullong str2stmp(const char *strTime)
 {
-	struct tm sTime;
 	if (strTime != NULL)
+	{
+		struct tm sTime;
 #ifdef __GNUC__
 		strptime(strTime, "%Y-%m-%d %H:%M:%S", &sTime);
 #else
 		sscanf(strTime, "%d-%d-%d %d:%d:%d", &sTime.tm_year, &sTime.tm_mon, &sTime.tm_mday, &sTime.tm_hour, &sTime.tm_min, &sTime.tm_sec);
+		sTime.tm_year -= 1900;
+		sTime.tm_mon -= 1;
 #endif
-	else
-	{
-		time_t timep;
-		timep = time(0);
-		sTime = *localtime(&timep);
+		ullong ft = mktime(&sTime);
+		return ft;
 	}
-	unsigned long long ft = mktime(&sTime);
-	return ft ;
+	else {
+		return time(0);
+	}
 }
 
-//时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
+//时间戳(秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
 char* stmp2str(ullong t, char* str, int strlen)
 {
-	if (t < 100000)
+	if (t < 1000000)
 		t = time(0);
 	struct tm *sTime = localtime((time_t*)&t);
 	if (sTime)
 		strftime(str, strlen, "%Y-%m-%d %H:%M:%S", sTime);
 	return str;
 }
+
 
 
 #ifdef _MSC_VER
@@ -1632,7 +1627,6 @@ int GetIP_v4_and_v6_linux(int family, char *address)
 	char buf[101];
 	struct sockaddr_in *addr4;
 	struct sockaddr_in6 *addr6;
-	int ret;
 	if (NULL == address)
 		return -1;
 

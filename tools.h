@@ -10,8 +10,8 @@ typedef unsigned char       uchar;
 typedef unsigned short      ushort;
 typedef unsigned int        uint;
 typedef unsigned long       ulong;
-typedef unsigned long long  ullong;
 typedef long long           llong;
+typedef unsigned long long  ullong;
 
 
 //-----------------------------------------------------------------------------------membuf c-str  win/unix
@@ -212,7 +212,7 @@ typedef struct tm_u {
 	int tm_wday;    /*星期 days since Sunday - [0,6 0:周日] */
 	int tm_yday;    /*年中的天数 days since January 1 - [0,365] */
 	int tm_isdst;   /*夏令时标志 daylight savings time flag */
-	long long tm_vsec; /*时间戳 seconds from 1900/1/1 0:0:0 */
+	llong tm_vsec; /*时间戳 seconds from 1900/1/1 0:0:0 */
 	int tm_usec;    /*微妙 microseconds */
 } tm_u;
 
@@ -222,11 +222,11 @@ tm_u GetLocaTime();
 //获取当天已逝去的秒数
 uint GetDaySecond();
 
-//字符串转换成时间戳(毫秒),字符串格式为:"2016-08-03 06:56:36"
-unsigned long long str2stmp(const char *strTime);
+//字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
+ullong str2stmp(const char *strTime);
 
-//时间戳(毫秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-char* stmp2str(unsigned long long t, char* str, int strlen);
+//时间戳(秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
+char* stmp2str(ullong t, char* str, int strlen);
 
 
 
