@@ -348,7 +348,7 @@ static void tw_request(uv_stream_t* client, reqHeads* heads) {
 
 			if (isFile(tmp))
 			{
-				tw_http_send_file(client, "text/html", tmp, heads->path);
+				tw_http_send_file(client, "text/html", tmp, heads);
 				break;
 			}
 			tmp[0] = 0;
