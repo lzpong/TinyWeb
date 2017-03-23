@@ -18,6 +18,7 @@ typedef unsigned long long  ullong;
 
 typedef struct membuf_t {
 	uchar* data;
+	void* data2;//其他数据的指针
 	ulong  size;
 	ulong  buffer_size;
 	uchar  flag;//标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧)   lzp 2016/11/28
@@ -228,6 +229,8 @@ ullong str2stmp(const char *strTime);
 //时间戳(秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
 char* stmp2str(ullong t, char* str, int strlen);
 
+//从头比较字符串,返回相同的长度,不区分大小写
+inline int strinstr(const char* s1, const char* s2);
 
 
 

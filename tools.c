@@ -39,6 +39,7 @@
 #include <limits.h>
 #include <stdarg.h>
 
+
 //-----------------------------------------------------------------------------------membuf c-str  win/linux
 #pragma region membuf c-str
 
@@ -1489,6 +1490,20 @@ char* stmp2str(ullong t, char* str, int strlen)
 	if (sTime)
 		strftime(str, strlen, "%Y-%m-%d %H:%M:%S", sTime);
 	return str;
+}
+
+//从头比较字符串,返回相同的长度,不区分大小写
+int strinstr(const char* s1, const char* s2)
+{
+	const char* cur = s1;
+	while (s1 && *s1>0 && s2 && *s2>0)
+	{
+		if (*s1 == *s2 || (isalpha(*s1) && isalpha(*s2) && abs(*s1 - *s2) == 32))
+			s1++, s2++;
+		else
+			break;
+	}
+	return s1 - cur;
 }
 
 

@@ -37,28 +37,28 @@
 auth lzpong 2016/11/24
 功能基于 libuv 跨平台库
 
-0.默认编码为 utf-8
+0.支持设置文档编码,默认 utf-8
 1.支持使用HTTP: GET/POST方式访问
 2.支持Socket, WebSocket 连接
 3.支持返回404错误页面
 4.支持指定根目录（默认程序所在目录）
-5.支持任意格式文件访问(带扩展名, 小文件下载)
+5.支持任意格式文件访问(带/不带扩展名, 文件下载)
 	a.支持静态网页访问：html/htm
 	b.支持其他静态文件：js, css, png, jpeg/jpg, gif, ico, txt, xml, json, log, wam, wav, mp3, apk
 	c.支持其他文件格式, 默认文件类型为："application/octet-stream"
 	d.支持不带扩展名文件访问
+	e.支持 Range 请求参数下载大文件
 6.支持默认index页面(index.html/index.htm)，可以自定义设置
 7.支持目录列表
 8.不允许访问根目录上级文件或文件夹
 9.支持回调
-	a.404前回调（未找到页面/文件时回调, 此功能便于程序返回自定义功能）
+	a.接收到HTTP请求后先回调（此功能便于程序返回自定义功能）,回调失败或返回0时执行普通http响应
 	b.WebSocket 数据回调
 	c.socket 数据回调
 
 ==============future
 1.支持cookie/session
 2.支持认证
-3.支持大文件响应（下载）
 
 #endif
 
@@ -73,12 +73,12 @@ typedef struct reqHeads {
 	char* query;//参数
 	char* data; //数据
 	size_t len; //数据长度
+	size_t Range_frm, Range_to;
 }reqHeads;
 
 //服务配置
 typedef struct tw_config {
 	char dirlist:1; //是否允许列出目录
-	char all_http_callback:1;//是否全部http访问都回调,http update to websocket 除外
 	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
 	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
 	char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
@@ -90,8 +90,9 @@ typedef struct tw_config {
 	//客户端接入
 	char (*on_connect)(void* data, uv_stream_t* client);
 
-	//404前回调(未找到请求的文件/文件夹时回调,此功能便于程序返回自定义功能)
-	//返回0表示没有适合的处理请求，将自动发送404响应；否则认为已经处理
+	//返回非0表示已经处理处理请求
+	//返回0表示没有适合的处理请求，将自动查找文件/文件夹，若未找到则发送404响应
+	//此功能便于程序返回自定义功能
 	//heads成员不需要free
 	char (*on_request)(void* data, uv_stream_t* client, reqHeads* heads);
 
