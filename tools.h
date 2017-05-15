@@ -13,15 +13,18 @@ typedef unsigned long       ulong;
 typedef long long           llong;
 typedef unsigned long long  ullong;
 
+#define bitAdd(a,b) ((a)|(b))        //加上二进制位
+#define bitHas(a,b) ((a)&(b))        //是否此有二进制位
+#define bitRemove(a,b) ((a)&~(b))    //减去二进制位
+#define Min(a,b) (((a)>(b))?(b):(a)) //最小值
+#define Max(a,b) (((a)>(b))?(a):(b)) //最大值
 
 //-----------------------------------------------------------------------------------membuf c-str  win/unix
 
 typedef struct membuf_t {
 	uchar* data;
-	void* data2;//其他数据的指针
 	ulong  size;
 	ulong  buffer_size;
-	uchar  flag;//标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧)   lzp 2016/11/28
 } membuf_t;
 //初始化
 void membuf_init(membuf_t* buf, uint initial_buffer_size);
@@ -200,7 +203,8 @@ char* WebSocketMakeFrame(const char* data, ulong* len, uchar op);
 const char* GetIPv4();
 //获取IPv6地址 (第一个IPv6)
 const char* GetIPv6();
-
+//获取网卡地址
+const char* GetMacAddr();
 
 
 typedef struct tm_u {
@@ -232,6 +236,10 @@ char* stmp2str(ullong t, char* str, int strlen);
 //从头比较字符串,返回相同的长度,不区分大小写
 inline int strinstr(const char* s1, const char* s2);
 
+//int32 转二进制字符串
+char* u2b(unsigned int n);
+//int64 转二进制字符串
+char* u2b64(unsigned int n);
 
 
 #ifdef __cplusplus

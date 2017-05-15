@@ -21,12 +21,9 @@
 #  define snprintf _snprintf
 #  endif
 
-#define strcmpi _stricmp
-
 #else //__GNUGC__
-#include <uv.h>
 
-#define strcmpi strcasecmp
+#include <uv.h>
 
 #endif
 
@@ -66,7 +63,14 @@ auth lzpong 2016/11/24
 extern "C" {
 #endif
 
-typedef struct reqHeads {
+typedef struct tw_peerAddr {
+	uchar  flag;//标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧)
+	ushort port;
+	uint   sk;
+	char   ip[17];
+}tw_peerAddr;
+
+typedef struct tw_reqHeads {
 	char method;//0:Socket 1:GET 2:POST
 	char* host; //IP:port
 	char* path; //路径
@@ -74,10 +78,14 @@ typedef struct reqHeads {
 	char* data; //数据
 	size_t len; //数据长度
 	size_t Range_frm, Range_to;
-}reqHeads;
+}tw_reqHeads;
 
 //服务配置
 typedef struct tw_config {
+	//private data:
+	uv_tcp_t _server;
+
+	//public data:
 	char dirlist:1; //是否允许列出目录
 	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
 	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
@@ -88,26 +96,26 @@ typedef struct tw_config {
 	void* data;//用户数据,如对象指针
 
 	//客户端接入
-	char (*on_connect)(void* data, uv_stream_t* client);
+	char (*on_connect)(void* data, uv_stream_t* client, tw_peerAddr* pa);
 
 	//返回非0表示已经处理处理请求
 	//返回0表示没有适合的处理请求，将自动查找文件/文件夹，若未找到则发送404响应
 	//此功能便于程序返回自定义功能
 	//heads成员不需要free
-	char (*on_request)(void* data, uv_stream_t* client, reqHeads* heads);
+	char (*on_request)(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* heads);
 
 	//Socket 或 WebSocket 数据, 可以通过buf->flag判断
 	//buf成员不需要free
-	char (*on_data)(void* data, uv_stream_t* client, membuf_t* buf);
+	char (*on_data)(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* buf);
 
 	//Socket 检测到错误(此时链接可能已经断开)
-	//buf成员不需要free
 	//错误消息格式："%d:%s,%s,%s"
-	char (*on_error)(void* data, uv_stream_t* client,int errcode, char* errstr, int flag);
+	//flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
+	char (*on_error)(void* data, uv_stream_t* client, tw_peerAddr* pa,int errcode, char* errstr);
 
 	//Socket 关闭(此时链接可能已经断开)
 	//flag:标志字节 ([0~7]: [0]是否需要保持连接<非长连接为http> [1]是否WebSocket
-	char (*on_close)(void* data, uv_stream_t* client, int flag);
+	char (*on_close)(void* data, uv_stream_t* client, tw_peerAddr* pa);
 } tw_config;
 
 
@@ -152,6 +160,10 @@ void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u
 
 //关闭客户端连接
 void tw_close_client(uv_stream_t* client);
+
+
+
+
 
 
 inline void printx(const uchar* data, uint len) {

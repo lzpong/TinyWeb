@@ -221,7 +221,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 	char tmp[1024];
 	membuf_t buf;
 	membuf_init(&buf, 5120);
-	sprintf(tmp, "<html><head><title>Index of %s</title>\r\n"
+	snprintf(tmp,1023, "<html><head><title>Index of %s</title>\r\n"
 		"</head><body><h1>Index of %s</h1>\r\n"
 		"<table>\r\n"
 		"<thead><tr><th><a href=\"javascript:fssort('type')\">@</a></th><th><a href=\"javascript:fssort('name')\">Name</a></th><th><a href=\"javascript:fssort('size')\">Size</a></th><th><a href=\"javascript:fssort('mtime')\">Last modified</a></th></tr>"
@@ -241,7 +241,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 	SYSTEMTIME st;//年月日 时分秒
 	DWORD sz;
 
-	sprintf(szFind, "%s\\*", fullpath);
+	snprintf(szFind,255, "%s\\*", fullpath);
 	hFind = FindFirstFile(szFind, &fdt);
 	//[name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
 	while (hFind != INVALID_HANDLE_VALUE)//一次查找循环
@@ -251,19 +251,19 @@ char* listDir(const char* fullpath, const char* reqPath)
 		FileTimeToSystemTime(&ft, &st);
 		if (fdt.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)//文件夹
 		{
-			if (strcmp(fdt.cFileName, ".") == 0)
+			if (strncmp(fdt.cFileName, ".",1) == 0)
 			{
 				if (!FindNextFile(hFind, &fdt))
 					break;//下一个文件
 				continue;
 			}
-			sprintf(tmp,"{\"name\":\"%s/\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":\"-\",\"type\":\"D\"},\n", fdt.cFileName, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+			snprintf(tmp,1023,"{\"name\":\"%s/\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":\"-\",\"type\":\"D\"},\n", fdt.cFileName, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 		}
 		else //文件
 		{
 			fnum++;
 			sz = fdt.nFileSizeHigh*(MAXDWORD + 1) + fdt.nFileSizeLow; //#define MAXDWORD    0xffffffff
-			sprintf(tmp,"{\"name\":\"%s\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":%ld,\"type\":\"F\"},\n", fdt.cFileName, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, sz);
+			snprintf(tmp, 1023,"{\"name\":\"%s\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":%ld,\"type\":\"F\"},\n", fdt.cFileName, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, sz);
 		}
 		membuf_append_data(&buf, tmp, strlen(tmp));
 		if (!FindNextFile(hFind, &fdt))
@@ -272,7 +272,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 	FindClose(hFind);
 	//membuf_remove(&buf, buf.size-1, 1);
 	buf.data[--buf.size] = 0; buf.data[--buf.size] = 0;
-	sprintf(tmp, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];\n"
+	snprintf(tmp, 1023, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];\n"
 		"function fsshow(){var html='';for (var r in files.files){r=files.files[r];html+='<tr><td>'+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+'</td><td>'+r.size+'</td><td>'+r.mtime+'</td></tr>';}document.querySelector('tbody').innerHTML = html;}\n"
 		"if(p!='/'){files.path+='/';}\n"
 		"files.files.sort(function(a,b){var n=a.type.localeCompare(b.type);if(n)return n;else return a.name.localeCompare(b.name);});\n"
@@ -352,7 +352,7 @@ char isFile(const char* path)
 }
 
 //列表目录
-char* listDir(const char* fullpath, const char* pathinfo)
+char* listDir(const char* fullpath, const char* reqPath)
 {
 	int fnum = 0;
 	char tmp[1024];
@@ -363,7 +363,7 @@ char* listDir(const char* fullpath, const char* pathinfo)
 	membuf_t buf;
 	membuf_init(&buf, 5120);
 
-	sprintf(tmp, "<html><head><title>Index of %s</title>\r\n"
+	snprintf(tmp, 1023, "<html><head><title>Index of %s</title>\r\n"
 		"</head><body><h1>Index of %s</h1>\r\n"
 		"<table>\r\n"
 		"<thead><tr><th><a href=\"javascript:fssort('type')\">@</a></th><th><a href=\"javascript:fssort('name')\">Name</a></th><th><a href=\"javascript:fssort('size')\">Size</a></th><th><a href=\"javascript:fssort('mtime')\">Last modified</a></th></tr>"
@@ -372,7 +372,7 @@ char* listDir(const char* fullpath, const char* pathinfo)
 		"<tfoot><tr><th colspan=\"4\"><hr></th></tr></tfoot>"
 		"</table>"
 		"<address>TinyWeb Server</address>"
-		"</body></tml>\r\n<script type=\"text/javascript\">\r\nvar files={\"path\":\"%s\",\"files\":[\r\n\0\0", pathinfo, pathinfo, pathinfo);
+		"</body></tml>\r\n<script type=\"text/javascript\">\r\nvar files={\"path\":\"%s\",\"files\":[\r\n\0\0", reqPath, reqPath, reqPath);
 
 	membuf_append_data(&buf, tmp, strlen(tmp));
 	//文件(size>-1) 或 目录（size=-1）   [name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
@@ -380,24 +380,24 @@ char* listDir(const char* fullpath, const char* pathinfo)
 	{
 		while ((fileInfo = readdir(dp)) != NULL)
 		{
-			sprintf(tmp,"%s/%s\0\0", fullpath, fileInfo->d_name);
+			snprintf(tmp, 1023,"%s/%s\0\0", fullpath, fileInfo->d_name);
 			stat(tmp, &statbuf);//stat函数需要传入绝对路径或相对（工作目录的）路径
 			mtime=localtime(&statbuf.st_mtime);
 			if (S_ISDIR(statbuf.st_mode))
 			{
-				if (strcmp(fileInfo->d_name, ".") == 0)
+				if (strncmp(fileInfo->d_name, ".",1) == 0)
 					continue;
-				sprintf(tmp, "{\"name\":\"%s/\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":\"-\",\"type\":\"D\"},\n", fileInfo->d_name, (1900 + mtime->tm_year), (1 + mtime->tm_mon), mtime->tm_mday, mtime->tm_hour, mtime->tm_min, mtime->tm_sec);
+				snprintf(tmp, 1023, "{\"name\":\"%s/\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":\"-\",\"type\":\"D\"},\n", fileInfo->d_name, (1900 + mtime->tm_year), (1 + mtime->tm_mon), mtime->tm_mday, mtime->tm_hour, mtime->tm_min, mtime->tm_sec);
 			}
 			else
-				fnum++,sprintf(tmp, "{\"name\":\"%s\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":%ld,\"type\":\"F\"},\n", fileInfo->d_name, (1900 + mtime->tm_year), (1 + mtime->tm_mon), mtime->tm_mday, mtime->tm_hour, mtime->tm_min, mtime->tm_sec, statbuf.st_size);
+				fnum++, snprintf(tmp, 1023, "{\"name\":\"%s\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":%ld,\"type\":\"F\"},\n", fileInfo->d_name, (1900 + mtime->tm_year), (1 + mtime->tm_mon), mtime->tm_mday, mtime->tm_hour, mtime->tm_min, mtime->tm_sec, statbuf.st_size);
 			membuf_append_data(&buf, tmp, strlen(tmp));
 		}
 		closedir(dp);
 	}
 	//membuf_remove(&buf, buf.size - 1, 1);
 	buf.data[--buf.size] = 0; buf.data[--buf.size] = 0;
-	sprintf(tmp, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];"
+	snprintf(tmp, 1023, "],total:%d};\r\nvar html=\"\", p=files.path[files.path.length-1];"
 		"function fsshow(){var html='';for (var r in files.files){r=files.files[r];html+='<tr><td>'+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+'</td><td>'+r.size+'</td><td>'+r.mtime+'</td></tr>';}document.querySelector('tbody').innerHTML = html;}\n"
 		"if(p!='/'){files.path+='/';}\n"
 		"files.files.sort(function(a,b){var n=a.type.localeCompare(b.type);if(n)return n;else return a.name.localeCompare(b.name);});\n"
@@ -1273,7 +1273,7 @@ uchar* hash1_Get(SHA1_CONTEXT* hd)
 //WebSocket握手Key计算
 char* WebSocketHandShak(const char* key)
 {
-	char akey[100] = { 0 };
+	char akey[137] = { 0 };
 	char acc[165] = { 0 }, *p;
 	int len;
 	SHA1_CONTEXT hd;
@@ -1283,14 +1283,14 @@ char* WebSocketHandShak(const char* key)
 	//{
 		//p += 19;
 		//char* p2=strst(p, "\r\n");
-		strcpy(akey, key);
+		strncpy(akey, key,99);
 		strncpy(akey + strlen(key), "258EAFA5-E914-47DA-95CA-C5AB0DC85B11", 36);
 
 		hash1_Reset(&hd);
 		hash1_Write(&hd, (uchar*)akey, strlen(akey));
 		hash1_Final(&hd);
 		p=base64_Encode(hd.buf, strlen((char*)hd.buf));
-		len=sprintf(acc, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", p);
+		len=snprintf(acc,164, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", p);
 		free(p);
 
 		p = (char*)malloc(len+1);
@@ -1506,6 +1506,28 @@ int strinstr(const char* s1, const char* s2)
 	return s1 - cur;
 }
 
+//int32 转二进制字符串
+char* u2b(unsigned int n) {
+	static char b[33] = { 0 };
+	b[31] = '0';
+	int i = 31, p = 1;
+	for (; i >= 0; i--, p <<= 1)
+	{
+		b[i] = (n&p) ? '1' : '0';
+	}
+	return b;
+}
+//int64 转二进制字符串
+char* u2b64(unsigned int n) {
+	static char b[65] = { 0 };
+	b[63] = '0';
+	int i = 63, p = 1;
+	for (; i >= 0; i--, p <<= 1)
+	{
+		b[i] = (n&p) ? '1' : '0';
+	}
+	return b;
+}
 
 
 #ifdef _MSC_VER
@@ -1577,15 +1599,27 @@ uint GetDaySecond()
 #endif // _MSC_VER
 
 
+static char CurIPv4[17] = { 0 };
+static char CurIPv6[50] = { 0 };
+static char CurMac[9] = { 0 };
 #ifdef _MSC_VER
 
 //#include <WinSock2.h>
 #include <Iphlpapi.h>
 #pragma comment(lib,"Iphlpapi.lib") //需要添加Iphlpapi.lib库
+
+//获取网卡地址
+const char* GetMacAddr()
+{
+	if (CurMac[0] < 1)
+		GetIPv4();
+	return CurMac;
+}
 //获取IPv4地址 (第一个IPv4)
 const char* GetIPv4()
 {//详情见：http://www.cnblogs.com/lzpong/p/6137652.html
-	static char CurIP[17] = { 0 };
+	if (CurIPv4[0])
+		return CurIPv4;
 	ulong stSize = sizeof(IP_ADAPTER_INFO);
 	//PIP_ADAPTER_INFO结构体指针存储本机网卡信息
 	PIP_ADAPTER_INFO pIpAdapterInfo = (PIP_ADAPTER_INFO)malloc(stSize);
@@ -1611,8 +1645,9 @@ const char* GetIPv4()
 		{
 			if (MIB_IF_TYPE_ETHERNET == pIpAdapterInfo->Type)
 			{
+				strncpy(CurMac,pIpAdapterInfo->Address,8);
 				IP_ADDR_STRING *pIpAddrString = &(pIpAdapterInfo->IpAddressList);
-				strncpy(CurIP, pIpAddrString->IpAddress.String, 16);
+				strncpy(CurIPv4, pIpAddrString->IpAddress.String, 16);
 				break;
 			}
 			pIpAdapterInfo = pIpAdapterInfo->Next;
@@ -1622,13 +1657,12 @@ const char* GetIPv4()
 	if (pIpAdapterInfo)
 		free(pIpAdapterInfo);
 
-	return CurIP;
+	return CurIPv4;
 }
 //获取IPv6地址 (第一个IPv6)
 const char* GetIPv6()
 {
-	static char CurIP[50] = { 0 };
-	return CurIP;
+	return CurIPv6;
 }
 
 #else
@@ -1638,7 +1672,7 @@ const char* GetIPv6()
 #include <ifaddrs.h>
 //#include <sys/socket.h>
 //获取IP地址
-int GetIP_v4_and_v6_linux(int family, char *address)
+int GetIP_v4_and_v6_linux(int family, char *address, int maxlen)
 {
 	struct ifaddrs *ifap0, *ifap;
 	char buf[101];
@@ -1651,7 +1685,7 @@ int GetIP_v4_and_v6_linux(int family, char *address)
 		return -1;
 	for (ifap = ifap0; ifap != NULL; ifap = ifap->ifa_next)
 	{
-		//if(strcmp(interface,ifap->ifa_name)!=0) continue; 
+		//if(strncmp(interface,ifap->ifa_name,)!=0) continue; 
 		if (ifap->ifa_addr == NULL) continue;
 		if ((ifap->ifa_flags & IFF_UP) == 0) continue;
 		if (family != ifap->ifa_addr->sa_family) continue;
@@ -1662,9 +1696,9 @@ int GetIP_v4_and_v6_linux(int family, char *address)
 			if (NULL != inet_ntop(ifap->ifa_addr->sa_family, (void *)&(addr4->sin_addr), buf, 100))
 			{
 				//printf("IP4 family=%d address=%s\n",ifap->ifa_addr->sa_family,address);
-				if (strcmp(buf, "127.0.0.1") == 0)
+				if (strncmp(buf, "127.0.0.1",9) == 0)
 					continue;
-				strcpy(address, buf);
+				strncpy(address, buf, maxlen);
 				if (ifap0) { freeifaddrs(ifap0); ifap0 = NULL; }
 				return 0;
 			}
@@ -1683,9 +1717,9 @@ int GetIP_v4_and_v6_linux(int family, char *address)
 			if (NULL != inet_ntop(ifap->ifa_addr->sa_family, (void *)&(addr6->sin6_addr), buf, 100))
 			{
 				//printf("IP6 family=%d address=%s\n",ifap->ifa_addr->sa_family,buf);
-				//if(strcmp(buf,"::1")==0) //上面已经过滤了
+				//if(strncmp(buf,"::1",3)==0) //上面已经过滤了
 				//	continue;
-				strcpy(address, buf);
+				strncpy(address, buf, maxlen);
 				if (ifap0) { freeifaddrs(ifap0); ifap0 = NULL; }
 				return 0;
 			}
@@ -1698,19 +1732,65 @@ int GetIP_v4_and_v6_linux(int family, char *address)
 }
 
 
+//获取网卡地址
+const char* GetMacAddr()
+{
+	if (CurMac[0] < 1)
+	{
+/*		int  sockfd, size = 1;
+		struct ifconf ifc;
+		struct sockaddr_in sa;
+		if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP))<0) return(0);
+		ifc.ifc_req = NULL;
+		do
+		{
+			++size;
+			if (!(ifc.ifc_req = (ifreq*)realloc(ifc.ifc_req, IFRSIZE))) return(0);
+			ifc.ifc_len = IFRSIZE;
+			if (ioctl(sockfd, SIOCGIFCONF, &ifc)) return(0);
+		} while (IFRSIZE <= ifc.ifc_len);
+		struct ifreq *ifr = ifc.ifc_req;
+		for (; (char*)ifr<(char*)ifc.ifc_req + ifc.ifc_len; ++ifr)
+		{
+			if (ifr->ifr_addr.sa_data == (ifr + 1)->ifr_addr.sa_data) continue;
+			if (ioctl(sockfd, SIOCGIFFLAGS, ifr)) continue;
+			if (!ioctl(sockfd, SIOCGIFHWADDR, ifr))
+			{
+				switch (ifr->ifr_hwaddr.sa_family)
+				{
+				case ARPHRD_NETROM:
+				case ARPHRD_ETHER:
+				case ARPHRD_PPP:
+				case ARPHRD_EETHER:
+				case ARPHRD_IEEE802:
+					break;
+				default:
+					continue;
+				}
+				if (memcmp(&ifr->ifr_addr.sa_data, null_card, 6))
+				{
+					memcpy(Address[j++], &ifr->ifr_addr.sa_data, 6);
+				}
+			}
+		}
+		close(sockfd);
+*/	}
+	return CurMac;
+}
+
 //获取IPv4地址 (第一个IPv4)
 const char* GetIPv4()
 {
-	static char CurIP[17] = { 0 };
-	GetIP_v4_and_v6_linux(AF_INET, CurIP);
-	return CurIP;
+	if (CurIPv4[0] < 1)
+		GetIP_v4_and_v6_linux(AF_INET, CurIPv4,16);
+	return CurIPv4;
 }
 //获取IPv6地址 (第一个IPv6)
 const char* GetIPv6()
 {
-	static char CurIP[50] = { 0 };
-	GetIP_v4_and_v6_linux(AF_INET6, CurIP);
-	return CurIP;
+	if (CurIPv6[0] < 1)
+		GetIP_v4_and_v6_linux(AF_INET6, CurIPv6,49);
+	return CurIPv6;
 }
 
 #endif // _MSC_VER
