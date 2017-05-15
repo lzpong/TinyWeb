@@ -612,7 +612,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 				char errstr[60] = { 0 };
 				snprintf(errstr,59, "%d:%s,%s", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
 				//出错信息回调
-				tw_conf->on_error(tw_conf->data, client, nread, &clidata->pa, errstr);
+				tw_conf->on_error(tw_conf->data, client, &clidata->pa, nread, errstr);
 			}
 			else
 				fprintf(stderr, "%d:%s,%s\n", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
@@ -682,7 +682,7 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 		uv_accept(server, (uv_stream_t*)client);
 		client->close_cb = after_uv_close_client;
 		//取客户端 socket,ip,port;
-		tw_getPeerAddr(client, &cli->pa);
+		tw_getPeerAddr((uv_stream_t*)client, &cli->pa);
 		//开始读取客户端数据
 		uv_read_start((uv_stream_t*)client, on_uv_alloc, on_uv_read);
 		//客户端接入回调
