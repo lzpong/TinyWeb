@@ -66,8 +66,10 @@ extern "C" {
 typedef struct tw_peerAddr {
 	uchar  flag;//标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧)
 	ushort port;
+	ushort fport;
 	uint   sk;
 	char   ip[17];
+	char   fip[17];
 }tw_peerAddr;
 
 typedef struct tw_reqHeads {

@@ -237,9 +237,9 @@ char* stmp2str(ullong t, char* str, int strlen);
 inline int strinstr(const char* s1, const char* s2);
 
 //int32 转二进制字符串
-char* u2b(unsigned int n);
+char* u2b(uint n);
 //int64 转二进制字符串
-char* u2b64(unsigned int n);
+char* u2b64(ullong n);
 
 
 #ifdef __cplusplus

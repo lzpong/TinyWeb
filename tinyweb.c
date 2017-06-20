@@ -634,7 +634,7 @@ static void on_uv_alloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t* bu
 //获取客户端的 socket,ip,port
 static char tw_getPeerAddr(uv_stream_t* client, tw_peerAddr* pa)
 {
-	struct sockaddr_in peeraddr;
+	struct sockaddr_in peeraddr,hostaddr;
 	int addrlen = sizeof(struct sockaddr);
 	//memset(pa, 0, sizeof(PeerAddr));
 	//客户端的地址
@@ -650,6 +650,7 @@ static char tw_getPeerAddr(uv_stream_t* client, tw_peerAddr* pa)
 			pa->sk = client->io_watcher.fd;
 #endif
 		uv_tcp_getpeername((uv_tcp_t*)client, (struct sockaddr*)&peeraddr, &addrlen);
+		uv_tcp_getsockname((uv_tcp_t*)client, (struct sockaddr*)&hostaddr, &addrlen);
 	}
 	else if (client->type == UV_UDP) {
 #ifdef WIN32
@@ -658,12 +659,15 @@ static char tw_getPeerAddr(uv_stream_t* client, tw_peerAddr* pa)
 		pa->sk = client->io_watcher.fd;
 #endif
 		uv_udp_getsockname((uv_udp_t*)client, (struct sockaddr*)&peeraddr, &addrlen);
+		uv_udp_getsockname((uv_udp_t*)client, (struct sockaddr*)&hostaddr, &addrlen);
 	}
 	else
 		return 1;
 	//网络字节序转换成主机字符序
 	uv_ip4_name(&peeraddr, pa->ip, sizeof(pa->ip));
 	pa->port = ntohs(peeraddr.sin_port);
+	uv_ip4_name(&hostaddr, pa->fip, sizeof(pa->ip));
+	pa->fport = ntohs(hostaddr.sin_port);
 
 	return 0;
 }

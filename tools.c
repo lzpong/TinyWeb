@@ -221,7 +221,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 	char tmp[1024];
 	membuf_t buf;
 	membuf_init(&buf, 5120);
-	snprintf(tmp,1023, "<html><head><title>Index of %s</title>\r\n"
+	snprintf(tmp,1023, "<!DOCTYPE html><html><head><title>Index of %s</title><meta name=\"renderer\" content=\"webkit\">\r\n"
 		"</head><body><h1>Index of %s</h1>\r\n"
 		"<table>\r\n"
 		"<thead><tr><th><a href=\"javascript:fssort('type')\">@</a></th><th><a href=\"javascript:fssort('name')\">Name</a></th><th><a href=\"javascript:fssort('size')\">Size</a></th><th><a href=\"javascript:fssort('mtime')\">Last modified</a></th></tr>"
@@ -363,7 +363,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 	membuf_t buf;
 	membuf_init(&buf, 5120);
 
-	snprintf(tmp, 1023, "<html><head><title>Index of %s</title>\r\n"
+	snprintf(tmp, 1023, "<!DOCTYPE html><html><head><title>Index of %s</title><meta name=\"renderer\" content=\"webkit\">\r\n"
 		"</head><body><h1>Index of %s</h1>\r\n"
 		"<table>\r\n"
 		"<thead><tr><th><a href=\"javascript:fssort('type')\">@</a></th><th><a href=\"javascript:fssort('name')\">Name</a></th><th><a href=\"javascript:fssort('size')\">Size</a></th><th><a href=\"javascript:fssort('mtime')\">Last modified</a></th></tr>"
@@ -949,12 +949,14 @@ char* base64_Decode(char* const encoded_string)
 	int in_ = 0;
 	uchar char_array_4[4], char_array_3[3];
 	membuf_t ret;
+	membuf_init(&ret,strlen(encoded_string)/3+1);
 
 	while (in_len-- && (encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
 		char_array_4[i++] = encoded_string[in_]; in_++;
 		if (i == 4) {
 			for (i = 0; i <4; i++)
-				char_array_4[i] = strstr(base64_table,(char*)&char_array_4[i])[0];
+				//char_array_4[i] = strstr(base64_table,(char*)&char_array_4[i])[0];
+				char_array_4[i] = strchr(base64_table, char_array_4[i])- base64_table;
 
 			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
 			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
@@ -971,7 +973,8 @@ char* base64_Decode(char* const encoded_string)
 			char_array_4[j] = 0;
 
 		for (j = 0; j <4; j++)
-			char_array_4[j] = strstr(base64_table, (char*)&char_array_4[j])[0];
+			//char_array_4[j] = strstr(base64_table, (char*)&char_array_4[j])[0];
+			char_array_4[j] = strchr(base64_table, char_array_4[j])- base64_table;
 
 		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
 		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
@@ -1302,7 +1305,7 @@ char* WebSocketHandShak(const char* key)
 	//	return NULL;
 }
 
-static void WebSocketDoMask(char* data, ulong len, char* mask)
+inline void WebSocketDoMask(char* data, ulong len, char* mask)
 {
 	ulong i = 0;
 	for(i=0; i<len; i++ )
@@ -1507,10 +1510,11 @@ int strinstr(const char* s1, const char* s2)
 }
 
 //int32 转二进制字符串
-char* u2b(unsigned int n) {
+char* u2b(uint n) {
 	static char b[33] = { 0 };
 	b[31] = '0';
-	int i = 31, p = 1;
+	int i = 31;
+	uint p = 1;
 	for (; i >= 0; i--, p <<= 1)
 	{
 		b[i] = (n&p) ? '1' : '0';
@@ -1518,10 +1522,11 @@ char* u2b(unsigned int n) {
 	return b;
 }
 //int64 转二进制字符串
-char* u2b64(unsigned int n) {
+char* u2b64(ullong n) {
 	static char b[65] = { 0 };
 	b[63] = '0';
-	int i = 63, p = 1;
+	int i = 63;
+	ullong p = 1;
 	for (; i >= 0; i--, p <<= 1)
 	{
 		b[i] = (n&p) ? '1' : '0';
@@ -1601,7 +1606,7 @@ uint GetDaySecond()
 
 static char CurIPv4[17] = { 0 };
 static char CurIPv6[50] = { 0 };
-static char CurMac[9] = { 0 };
+static char CurMac[25] = { 0 };
 #ifdef _MSC_VER
 
 //#include <WinSock2.h>
@@ -1645,7 +1650,13 @@ const char* GetIPv4()
 		{
 			if (MIB_IF_TYPE_ETHERNET == pIpAdapterInfo->Type)
 			{
-				strncpy(CurMac,pIpAdapterInfo->Address,8);
+				sprintf(CurMac, "%02x:%02x:%02x:%02x:%02x:%02x", //以太网MAC地址的长度是48位
+					(uchar)pIpAdapterInfo->Address[0],
+					(uchar)pIpAdapterInfo->Address[1],
+					(uchar)pIpAdapterInfo->Address[2],
+					(uchar)pIpAdapterInfo->Address[3],
+					(uchar)pIpAdapterInfo->Address[4],
+					(uchar)pIpAdapterInfo->Address[5]);
 				IP_ADDR_STRING *pIpAddrString = &(pIpAdapterInfo->IpAddressList);
 				strncpy(CurIPv4, pIpAddrString->IpAddress.String, 16);
 				break;
@@ -1668,66 +1679,67 @@ const char* GetIPv6()
 #else
 
 #include <net/if.h>
-#include <arpa/inet.h>
 #include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
 //#include <sys/socket.h>
-//获取IP地址
-int GetIP_v4_and_v6_linux(int family, char *address, int maxlen)
-{
-	struct ifaddrs *ifap0, *ifap;
-	char buf[101];
-	struct sockaddr_in *addr4;
-	struct sockaddr_in6 *addr6;
-	if (NULL == address)
-		return -1;
-
-	if (getifaddrs(&ifap0))
-		return -1;
-	for (ifap = ifap0; ifap != NULL; ifap = ifap->ifa_next)
+//获取 IP,MAC 参见 http://www.cnblogs.com/lzpong/p/6956439.html
+//获取 MAC 地址
+static char* getMac(char* mac, char* dv) {
+	struct   ifreq   ifreq;
+	int   sock;
+	if (!mac || !dv)
+		return mac;
+	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) <0)
 	{
-		//if(strncmp(interface,ifap->ifa_name,)!=0) continue; 
-		if (ifap->ifa_addr == NULL) continue;
-		if ((ifap->ifa_flags & IFF_UP) == 0) continue;
-		if (family != ifap->ifa_addr->sa_family) continue;
-
-		if (AF_INET == ifap->ifa_addr->sa_family)
-		{
-			addr4 = (struct sockaddr_in *)ifap->ifa_addr;
-			if (NULL != inet_ntop(ifap->ifa_addr->sa_family, (void *)&(addr4->sin_addr), buf, 100))
-			{
-				//printf("IP4 family=%d address=%s\n",ifap->ifa_addr->sa_family,address);
-				if (strncmp(buf, "127.0.0.1",9) == 0)
-					continue;
-				strncpy(address, buf, maxlen);
-				if (ifap0) { freeifaddrs(ifap0); ifap0 = NULL; }
-				return 0;
-			}
-			//else
-			//    break;
-		}
-		else if (AF_INET6 == ifap->ifa_addr->sa_family)
-		{
-			addr6 = (struct sockaddr_in6*) ifap->ifa_addr;
-			if (IN6_IS_ADDR_MULTICAST(&addr6->sin6_addr)) {/*printf("IN6_IS_ADDR_MULTICAST\n");*/ continue; }
-			//if(IN6_IS_ADDR_LINKLOCAL(&addr6->sin6_addr)){/*本地IPv6地址*/printf("IN6_IS_ADDR_LINKLOCAL\n"); /*continue;*/}
-			if (IN6_IS_ADDR_LOOPBACK(&addr6->sin6_addr)) {/*::1*/continue; }
-			if (IN6_IS_ADDR_UNSPECIFIED(&addr6->sin6_addr)) {/*printf("IN6_IS_ADDR_UNSPECIFIED\n");*/ continue; }
-			if (IN6_IS_ADDR_SITELOCAL(&addr6->sin6_addr)) {/*printf("IN6_IS_ADDR_SITELOCAL\n");*/ continue; }
-
-			if (NULL != inet_ntop(ifap->ifa_addr->sa_family, (void *)&(addr6->sin6_addr), buf, 100))
-			{
-				//printf("IP6 family=%d address=%s\n",ifap->ifa_addr->sa_family,buf);
-				//if(strncmp(buf,"::1",3)==0) //上面已经过滤了
-				//	continue;
-				strncpy(address, buf, maxlen);
-				if (ifap0) { freeifaddrs(ifap0); ifap0 = NULL; }
-				return 0;
-			}
-			//else
-			//   break; 
-		}
+		perror("socket ");
+		return mac;
 	}
-	if (ifap0) { freeifaddrs(ifap0); ifap0 = NULL; }
+	strcpy(ifreq.ifr_name, dv);
+	if (ioctl(sock, SIOCGIFHWADDR, &ifreq) <0)
+	{
+		perror("ioctl ");
+		return mac;
+	}
+	sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", //以太网MAC地址的长度是48位
+		(unsigned char)ifreq.ifr_hwaddr.sa_data[0],
+		(unsigned char)ifreq.ifr_hwaddr.sa_data[1],
+		(unsigned char)ifreq.ifr_hwaddr.sa_data[2],
+		(unsigned char)ifreq.ifr_hwaddr.sa_data[3],
+		(unsigned char)ifreq.ifr_hwaddr.sa_data[4],
+		(unsigned char)ifreq.ifr_hwaddr.sa_data[5]);
+	return mac;
+}
+//获取IP地址
+static int GetIP_v4_and_v6_linux(int family)
+{
+	struct ifaddrs * ifaplist = NULL, *ifap = NULL;
+	void * tmpAddrPtr = NULL;
+
+	getifaddrs(&ifaplist);
+	ifap = ifaplist;
+	while (ifap != NULL) {
+		if (ifap->ifa_addr->sa_family == family) { //AF_INET  check it is IP4
+			// is a valid IP4 Address
+			tmpAddrPtr = &((struct sockaddr_in *)ifap->ifa_addr)->sin_addr;
+			inet_ntop(AF_INET, tmpAddrPtr, CurIPv4, INET_ADDRSTRLEN);
+			if (strcmp(CurIPv4, "127.0.0.1") != 0) {
+				getMac(CurMac, ifap->ifa_name);
+				break;
+			}
+		}
+		else if (ifap->ifa_addr->sa_family == family) { //AF_INET6  check it is IP6
+			// is a valid IP6 Address
+			tmpAddrPtr = &((struct sockaddr_in *)ifap->ifa_addr)->sin_addr;
+			inet_ntop(AF_INET6, tmpAddrPtr, CurIPv6, INET6_ADDRSTRLEN);
+			if (strcmp(CurIPv6, "::") != 0 && strcmp(CurIPv6, "::1") != 0) {
+				getMac(CurMac, ifap->ifa_name);
+				break;
+			}
+		}
+		ifap = ifap->ifa_next;
+	}
+	if (ifaplist) { freeifaddrs(ifaplist); ifaplist = NULL; }
 	return -1;
 }
 
@@ -1736,45 +1748,7 @@ int GetIP_v4_and_v6_linux(int family, char *address, int maxlen)
 const char* GetMacAddr()
 {
 	if (CurMac[0] < 1)
-	{
-/*		int  sockfd, size = 1;
-		struct ifconf ifc;
-		struct sockaddr_in sa;
-		if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP))<0) return(0);
-		ifc.ifc_req = NULL;
-		do
-		{
-			++size;
-			if (!(ifc.ifc_req = (ifreq*)realloc(ifc.ifc_req, IFRSIZE))) return(0);
-			ifc.ifc_len = IFRSIZE;
-			if (ioctl(sockfd, SIOCGIFCONF, &ifc)) return(0);
-		} while (IFRSIZE <= ifc.ifc_len);
-		struct ifreq *ifr = ifc.ifc_req;
-		for (; (char*)ifr<(char*)ifc.ifc_req + ifc.ifc_len; ++ifr)
-		{
-			if (ifr->ifr_addr.sa_data == (ifr + 1)->ifr_addr.sa_data) continue;
-			if (ioctl(sockfd, SIOCGIFFLAGS, ifr)) continue;
-			if (!ioctl(sockfd, SIOCGIFHWADDR, ifr))
-			{
-				switch (ifr->ifr_hwaddr.sa_family)
-				{
-				case ARPHRD_NETROM:
-				case ARPHRD_ETHER:
-				case ARPHRD_PPP:
-				case ARPHRD_EETHER:
-				case ARPHRD_IEEE802:
-					break;
-				default:
-					continue;
-				}
-				if (memcmp(&ifr->ifr_addr.sa_data, null_card, 6))
-				{
-					memcpy(Address[j++], &ifr->ifr_addr.sa_data, 6);
-				}
-			}
-		}
-		close(sockfd);
-*/	}
+		GetIP_v4_and_v6_linux(AF_INET);
 	return CurMac;
 }
 
@@ -1782,14 +1756,14 @@ const char* GetMacAddr()
 const char* GetIPv4()
 {
 	if (CurIPv4[0] < 1)
-		GetIP_v4_and_v6_linux(AF_INET, CurIPv4,16);
+		GetIP_v4_and_v6_linux(AF_INET);
 	return CurIPv4;
 }
 //获取IPv6地址 (第一个IPv6)
 const char* GetIPv6()
 {
 	if (CurIPv6[0] < 1)
-		GetIP_v4_and_v6_linux(AF_INET6, CurIPv6,49);
+		GetIP_v4_and_v6_linux(AF_INET6);
 	return CurIPv6;
 }
 
