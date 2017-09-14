@@ -88,7 +88,8 @@ _INLINE uint membuf_append_ptr(membuf_t* buf, void* ptr) {
 char* getWorkPath();
 //获取程序文件所在路径,不带'/'
 char* getProcPath();
-
+//建立目录,递归建立 (mod: linux系统需要,权限模式,, windows系统不需要)
+int makeDir(const char* path, int mod);
 //路径是否存在(0：不存在  1：存在:文件  2：存在:文件夹)
 char isExist(const char* path);
 //是否文件(1:是文件  0:非文件/不存在)
@@ -228,13 +229,13 @@ tm_u GetLocaTime();
 uint GetDaySecond();
 
 //字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
-ullong str2stmp(const char *strTime);
+llong str2stmp(const char *strTime);
 
 //时间戳(秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-char* stmp2str(ullong t, char* str, int strlen);
+char* stmp2str(llong t, char* str, int strlen);
 
 //从头比较字符串,返回相同的长度,不区分大小写
-inline int strinstr(const char* s1, const char* s2);
+int strinstr(const char* s1, const char* s2);
 
 //int32 转二进制字符串
 char* u2b(uint n);

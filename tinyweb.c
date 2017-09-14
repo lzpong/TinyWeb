@@ -1,5 +1,4 @@
-﻿
-#include "tinyweb.h"
+﻿#include "tinyweb.h"
 #include "tools.h"
 
 #ifdef __GNUC__
@@ -17,7 +16,6 @@
 //TinyWeb 增加与完善功能，by lzpong 2016/11/24
 
 #define TW_SEND_SIZE 1024*8
-
 
 typedef struct tw_file_t {
 	//uchar flag;   //连接的标志
@@ -109,11 +107,11 @@ void tw_send_data(uv_stream_t* client, const void* data, unsigned int len, int n
 void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u8data, int content_length, int* respone_size)
 {
 	int repSize;
-	const char *p=strchr(content_type,'/');
+	const char *p = strchr(content_type, '/');
 	//有'.'    没有'/'   至少有两个'/'    '/'是在开头    '/'是在末尾
 	//都要重新取文件类型
 	if (p) {
-		if(strchr(content_type, '.'))// 有'.'
+		if (strchr(content_type, '.'))// 有'.'
 			p = tw_get_content_type(content_type);
 		else {
 			p = strchr(p + 1, '/');
@@ -136,7 +134,6 @@ void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u
 		*respone_size = repSize;
 }
 
-
 //返回格式华的HTTP响应内容（需要free返回数据）
 //status: "200 OK"
 //content_type: 文件类型，如："text/html" ；可以调用tw_get_content_type()得到
@@ -152,7 +149,7 @@ char* tw_format_http_respone(uv_stream_t* client, const char* status, const char
 		content_length = content ? strlen(content) : 0;
 	totalsize = strlen(status) + strlen(content_type) + content_length + 128;
 	respone = (char*)malloc(totalsize);
-	header_size = snprintf(respone, totalsize-1, "HTTP/1.1 %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nContent-Length:%d\r\n\r\n"
+	header_size = snprintf(respone, totalsize - 1, "HTTP/1.1 %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nContent-Length:%d\r\n\r\n"
 		, status, content_type, tw_conf->charset, content_length);
 	assert(header_size > 0);
 	if (content_length) {
@@ -175,12 +172,13 @@ static void tw_404_not_found(uv_stream_t* client, const char* pathinfo) {
 //发送301响应
 //
 static void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads) {
-	int len=76+strlen(heads->path);
+	int len = 76 + strlen(heads->path);
 	char buffer[512];
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
-	snprintf(buffer, sizeof(buffer), "HTTP/1.1 301 Moved Permanently\r\nServer: TinyWeb\r\nLocation: HTTP://%s%s/\r\nConnection: close\r\n"
+	snprintf(buffer, sizeof(buffer), "HTTP/1.1 301 Moved Permanently\r\nServer: TinyWeb\r\nLocation: http://%s%s/%s%s\r\nConnection: close\r\n"
 		"Content-Type:text/html;charset=%s\r\nContent-Length:%d\r\n\r\n<h1>Moved Permanently</h1><p>The document has moved <a href=\"%s\">here</a>.</p>"
-		, heads->host, heads->path, tw_conf->charset,len, heads->path);
+		, heads->host, heads->path, (heads->query?"?":""), (heads->query?heads->query:"")
+		, tw_conf->charset, len, heads->path);
 	tw_send_data(client, buffer, -1, 1, 1);
 }
 
@@ -203,9 +201,9 @@ static char tw_http_send_file(uv_stream_t* client, const char* content_type, con
 			tw_404_not_found(client, heads->path);
 			return 0;
 		}
-		respone=(char*)malloc(256 + 1);
-		int respone_size = snprintf(respone,256, "HTTP/1.1 200 OK\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nContent-Length:%ld\r\n\r\n"
-			, content_type, tw_conf->charset,  filet->fsize);
+		respone = (char*)malloc(256 + 1);
+		int respone_size = snprintf(respone, 256, "HTTP/1.1 200 OK\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nContent-Length:%ld\r\n\r\n"
+			, content_type, tw_conf->charset, filet->fsize);
 		tw_send_data(client, respone, respone_size, 0, 1);
 		return 1;
 	}
@@ -214,7 +212,7 @@ static char tw_http_send_file(uv_stream_t* client, const char* content_type, con
 		if (filet->fp) {
 			respone = (char*)malloc(TW_SEND_SIZE + 1);
 			// fread //返回实际读取的单元个数。如果小于count，则可能文件结束或读取出错；可以用ferror()检测是否读取出错，用feof()函数检测是否到达文件结尾。如果size或count为0，则返回0。
-			read_size=fread(respone, sizeof(char), TW_SEND_SIZE, filet->fp);
+			read_size = fread(respone, sizeof(char), TW_SEND_SIZE, filet->fp);
 			if (read_size > 0) {
 				filet->lsize -= read_size;
 				if (filet->lsize <= 0) {
@@ -245,7 +243,7 @@ const char* tw_get_content_type(const char* fileExt) {
 		//不管什么路径名或者文件名, 只要最后面有点(.),就认为是有扩展名的
 		const char *p = strrchr(fileExt, '.');
 		if (p) { // /aaa.txt
-			fileExt = p+1;
+			fileExt = p + 1;
 		}
 	}
 	else //否则没有扩展名
@@ -253,11 +251,11 @@ const char* tw_get_content_type(const char* fileExt) {
 	if (strcmpi(fileExt, "htm") == 0 || strcmpi(fileExt, "html") == 0)
 		return "text/html";
 	else if (strcmpi(fileExt, "js") == 0)
-		return "text/javascript";
+		return "application/javascript";
 	else if (strcmpi(fileExt, "css") == 0)
 		return "text/css";
 	else if (strcmpi(fileExt, "json") == 0)
-		return "text/json";
+		return "application/json";
 	else if (strcmpi(fileExt, "log") == 0 || strcmpi(fileExt, "txt") == 0)
 		return "text/plain";
 	else if (strcmpi(fileExt, "jpg") == 0 || strcmpi(fileExt, "jpeg") == 0)
@@ -290,16 +288,16 @@ const char* tw_get_content_type(const char* fileExt) {
 //if not handle this request (by invoking write_uv_data()), you can close connection using tw_close_client(client).
 //pathinfo: "/" or "/book/view/1"
 //query_stirng: the string after '?' in url, such as "id=0&value=123", maybe NULL or ""
-static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
+void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	char fullpath[260];//绝对路径（末尾不带斜杠）
-	snprintf(fullpath,259, "%s%s\0", tw_conf->doc_dir, (heads->path[0] == '/' ? heads->path + 1 : heads->path));
+	snprintf(fullpath, 259, "%s/%s\0", tw_conf->doc_dir, (heads->path[0] == '/' ? heads->path + 1 : heads->path));
 	//去掉末尾的斜杠
 	char *p = &fullpath[strlen(fullpath) - 1];
 	while (*p == '/' || *p == '\\')
 	{
 		*p = 0;
-		p --;
+		p--;
 	}
 
 	char file_dir = isExist(fullpath);
@@ -319,7 +317,7 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 				p--;
 			}
 		}
-		tw_http_send_file(client, postfix?tw_get_content_type(postfix):"application/octet-stream", fullpath, heads);
+		tw_http_send_file(client, postfix ? tw_get_content_type(postfix) : "application/octet-stream", fullpath, heads);
 	}
 	break;
 	case 2://存在：文件夹
@@ -333,14 +331,9 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 		char *s = strdup(tw_conf->doc_index);
 		p = strtok(s, ";");
 		//是否有默认主页
-		while(p)
+		while (p)
 		{
-#ifdef _MSC_VER
-			snprintf(tmp,259, "%s\\%s", fullpath, p);
-#else //_GNUC_
-			snprintf(tmp,259, "%s/%s", fullpath, p);
-#endif // _MSC_VER
-
+			snprintf(tmp, 259, "%s/%s", fullpath, p);
 			if (isFile(tmp))
 			{
 				tw_http_send_file(client, "text/html", tmp, heads);
@@ -356,13 +349,13 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 			char *p = "Welcome to TinyWeb.<br>Directory access forbidden.";
 			if (tw_conf->dirlist) {
 				p = listDir(fullpath, heads->path);
-#ifdef _MSC_VER //Windows下需要转换编码
-				unsigned int len = strlen(p);
-				char* p2 = GB2U8(p, &len);
-				free(p);
-				p = p2;
-				//linux 下，系统是和源代码文件编码都是是utf8的，就不需要转换
-#endif // _MSC_VER
+				if (strstr(tw_conf->charset, "utf"))
+				{//下需要转换编码
+					unsigned int len = strlen(p);
+					char* p2 = GB2U8(p, &len);
+					free(p);
+					p = p2;
+				}
 			}
 			char *respone = tw_format_http_respone(client, "200 OK", "text/html", p, -1, NULL);
 			tw_send_data(client, respone, -1, 0, 1);
@@ -370,20 +363,20 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 				free(p);
 		}
 	}
-		break;
+	break;
 	default://不存在
-			tw_404_not_found(client, heads->path);
+		tw_404_not_found(client, heads->path);
 		break;
 	}
 }
 
 //获取http头信息,返回指向 Sec-WebSocket-Key 的指针
 static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
-	char *key,*end,*p;
+	char *key, *end, *p;
 	char* data = strstr(buf->base, "\r\n\r\n");
 	if (data) {
 		*data = 0;
-		heads->data = data + 4;
+		heads->data = data += 4;
 		//是否有 Sec-WebSocket-Key
 		key = strstr(buf->base, "Sec-WebSocket-Key:");
 		if (key) {
@@ -404,7 +397,7 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 		if (heads->method)
 		{
 			//search path
-			heads->path = strchr(buf->base+3, ' ')+1;
+			heads->path = strchr(buf->base + 3, ' ') + 1;
 			while (isspace(*heads->path)) heads->path++;
 			end = strchr(heads->path, ' ');
 			if (end) *end = 0;
@@ -438,13 +431,13 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 			}
 			//确保结尾不是"/.."
 			p = strrchr(heads->path, '.');
-			if (p && *(p + 1) == 0 && *(p - 1) == '.' && *(p - 2) == '/'){
+			if (p && *(p + 1) == 0 && *(p - 1) == '.' && *(p - 2) == '/') {
 				*(p + 1) = '/';
 				*(p + 2) = 0;
 			}
 			//去掉"/./"
 			while ((p = strstr(heads->path, "/./"))) {
-				memmove(p, p+2, strlen(p+2) + 1);
+				memmove(p, p + 2, strlen(p + 2) + 1);
 			}
 			//尽可能的合并"../"
 			while ((p = strstr(heads->path, "/.."))) {//存在 ..
@@ -479,10 +472,10 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 			p = strstr(end + 1, "Range: ");
 			if (p) {
 				p += 7;
-				end=strstr(p, "-");
+				end = strstr(p, "-");
 				if (end) {
-					heads->Range_frm = strtoull(p,&end,10);
-					p= strstr(++end, "\r\n");//跳过 '-'
+					heads->Range_frm = strtoull(p, &end, 10);
+					p = strstr(++end, "\r\n");//跳过 '-'
 					if (p - end > 0)
 						heads->Range_to = strtoull(end, &p, 10);
 					else
@@ -491,9 +484,9 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 				end = p;
 			}
 			//data length
-			heads->len = buf->len - (data-buf->base) -4;
+			heads->len = strlen(data);
 			if (heads->len < 1)
-				heads->data = NULL, heads->len = 0;
+				heads->data = NULL;
 		}
 	}
 	return NULL;
@@ -503,12 +496,12 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 static void on_read_websocket(uv_stream_t* client, char* data, unsigned long Len) {
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	tw_client* clidata = (tw_client*)client->data;
-	WebSocketHandle* hd= &clidata->hd;
+	WebSocketHandle* hd = &clidata->hd;
 	if (NULL == hd->buf.data)
 		membuf_init(&hd->buf, 128);
 
 	WebSocketGetData(hd, data, Len);
-	clidata->pa.flag =bitRemove(clidata->pa.flag,0x4);
+	clidata->pa.flag = bitRemove(clidata->pa.flag, 0x4);
 
 	if (hd->isEof)
 	{
@@ -522,7 +515,7 @@ static void on_read_websocket(uv_stream_t* client, char* data, unsigned long Len
 			if (tw_conf->on_data)
 				tw_conf->on_data(tw_conf->data, client, &clidata->pa, &hd->buf);
 			break;
-		case 3: case 4: case 5: case 6: case 7: //0x3 - 7暂时无定义，为以后的非控制帧保留			
+		case 3: case 4: case 5: case 6: case 7: //0x3 - 7暂时无定义，为以后的非控制帧保留
 			//membuf_uninit(hd->buf);
 			//memset(hd, 0, sizeof(WebSocketHandle));
 			break;
@@ -532,7 +525,7 @@ static void on_read_websocket(uv_stream_t* client, char* data, unsigned long Len
 			if (hd->buf.size > 2) { //错误信息
 				if (tw_conf->on_error) {
 					char errstr[60] = { 0 };
-					snprintf(errstr,59, "-0:wserr,%s", hd->buf.data + 2);
+					snprintf(errstr, 59, "-0:wserr,%s", hd->buf.data + 2);
 					//出错信息回调
 					tw_conf->on_error(tw_conf->data, client, &clidata->pa, 0, errstr);
 				}
@@ -567,9 +560,9 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 			on_read_websocket(client, buf->base, nread);
 		}
 		//long-link
-		else if(clidata->pa.flag & 0x1){ //SOCKET //long-link
+		else if (clidata->pa.flag & 0x1) { //SOCKET //long-link
 			//接收数据回调
-			if (tw_conf->on_data){
+			if (tw_conf->on_data) {
 				mbuf.data = buf->base;
 				mbuf.size = nread;
 				mbuf.buffer_size = buf->len;
@@ -578,20 +571,20 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 		}
 		//http 或 未知
 		else { //http 或 未知
-			char* p,*p2;
+			char* p, *p2;
 			tw_reqHeads heads;
 			memset(&heads, 0, sizeof(tw_reqHeads));
-			p=tw_get_http_heads(buf, &heads);//get Sec-WebSocket-Key ?
+			p = tw_get_http_heads(buf, &heads);//get Sec-WebSocket-Key ?
 			if (p) { //WebSocket 握手
 				clidata->pa.flag |= 3;//long-link & WebSocket
-				p2=WebSocketHandShak(p);
+				p2 = WebSocketHandShak(p);
 				tw_send_data(client, p2, -1, 1, 0);
 				free(p2);
 			}
 			else if (heads.method) { //HTTP
 				//所有请求全部回调,返回非0,则继续
-				if (tw_conf->on_request==0 || 0==tw_conf->on_request(tw_conf->data, client, &clidata->pa, &heads)){
-						tw_request(client, &heads);
+				if (tw_conf->on_request == 0 || 0 == tw_conf->on_request(tw_conf->data, client, &clidata->pa, &heads)) {
+					tw_request(client, &heads);
 				}
 			}
 			else { //SOCKET
@@ -610,7 +603,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 		if (nread != UV_EOF) {
 			if (tw_conf->on_error) {
 				char errstr[60] = { 0 };
-				snprintf(errstr,59, "%d:%s,%s", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
+				snprintf(errstr, 59, "%d:%s,%s", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
 				//出错信息回调
 				tw_conf->on_error(tw_conf->data, client, &clidata->pa, nread, errstr);
 			}
@@ -618,7 +611,7 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 				fprintf(stderr, "%d:%s,%s\n", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
 		}
 		//else //关闭连接
-			tw_close_client(client);
+		tw_close_client(client);
 	}
 	//每次使用完要释放
 	if (buf->base)
@@ -627,21 +620,22 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 
 //为每次读取数据分配内存缓存
 static void on_uv_alloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-	buf->base = (char*)calloc(1,suggested_size);
+	buf->base = (char*)calloc(1, suggested_size);
 	buf->len = suggested_size;
 }
 
 //获取客户端的 socket,ip,port
 static char tw_getPeerAddr(uv_stream_t* client, tw_peerAddr* pa)
 {
-	struct sockaddr_in peeraddr,hostaddr;
-	int addrlen = sizeof(struct sockaddr);
+	struct sockaddr_in peeraddr[2], hostaddr[2]; //Windows 下不声明成数组(且数组长度大于1),getpeername会失败(errno=10014)
+	int addrlen = sizeof(peeraddr);
 	//memset(pa, 0, sizeof(PeerAddr));
 	//客户端的地址
 	if (client->type == UV_TCP) {
 #ifdef WIN32
 		pa->sk = ((uv_tcp_t*)client)->socket;
 #else
+		addrlen /= 2;
 #if defined(__APPLE__)
 		if (client->select)
 			pa->sk = client->select;
@@ -649,8 +643,12 @@ static char tw_getPeerAddr(uv_stream_t* client, tw_peerAddr* pa)
 #endif
 			pa->sk = client->io_watcher.fd;
 #endif
-		uv_tcp_getpeername((uv_tcp_t*)client, (struct sockaddr*)&peeraddr, &addrlen);
-		uv_tcp_getsockname((uv_tcp_t*)client, (struct sockaddr*)&hostaddr, &addrlen);
+		int er = uv_tcp_getpeername((uv_tcp_t*)client, (struct sockaddr*)peeraddr, &addrlen);
+		if (er < 0) 
+			memset(peeraddr, 0, addrlen);
+		er = uv_tcp_getsockname((uv_tcp_t*)client, (struct sockaddr*)hostaddr, &addrlen);
+		if (er < 0)
+			memset(hostaddr, 0, addrlen);
 	}
 	else if (client->type == UV_UDP) {
 #ifdef WIN32
@@ -658,16 +656,20 @@ static char tw_getPeerAddr(uv_stream_t* client, tw_peerAddr* pa)
 #else
 		pa->sk = client->io_watcher.fd;
 #endif
-		uv_udp_getsockname((uv_udp_t*)client, (struct sockaddr*)&peeraddr, &addrlen);
-		uv_udp_getsockname((uv_udp_t*)client, (struct sockaddr*)&hostaddr, &addrlen);
+		int er = uv_udp_getsockname((uv_udp_t*)client, (struct sockaddr*)peeraddr, &addrlen);
+		if (er < 0)
+			memset(peeraddr, 0, addrlen);
+		er = uv_udp_getsockname((uv_udp_t*)client, (struct sockaddr*)hostaddr, &addrlen);
+		if (er < 0)
+			memset(hostaddr, 0, addrlen);
 	}
 	else
 		return 1;
 	//网络字节序转换成主机字符序
-	uv_ip4_name(&peeraddr, pa->ip, sizeof(pa->ip));
-	pa->port = ntohs(peeraddr.sin_port);
-	uv_ip4_name(&hostaddr, pa->fip, sizeof(pa->ip));
-	pa->fport = ntohs(hostaddr.sin_port);
+	uv_ip4_name(peeraddr, pa->ip, sizeof(pa->ip));
+	pa->port = ntohs(peeraddr[0].sin_port);
+	uv_ip4_name(hostaddr, pa->fip, sizeof(pa->ip));
+	pa->fport = ntohs(hostaddr[0].sin_port);
 
 	return 0;
 }
@@ -678,9 +680,9 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 	tw_client* cli;
 	if (status == 0) {
 		//建立客户端信息,在关闭连接时释放 see after_uv_close_client
-		uv_tcp_t* client = (uv_tcp_t*)calloc(1,sizeof(uv_tcp_t));
+		uv_tcp_t* client = (uv_tcp_t*)calloc(1, sizeof(uv_tcp_t));
 		//创建客户端的数据缓存块,在关闭连接时释放 see after_uv_close_client
-		cli = client->data = calloc(1,sizeof(tw_client));
+		cli = client->data = calloc(1, sizeof(tw_client));
 		uv_tcp_init(server->loop, client);//将客户端放入loop
 		//接受客户，保存客户端信息
 		uv_accept(server, (uv_stream_t*)client);
@@ -696,12 +698,11 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 	}
 }
 
-
 //==================================================================================================
 
 //TinyWeb 线程开始运行
 static void tw_run(uv_loop_t* loop) {
-	tw_config* tw_conf=(tw_config*)loop->data;
+	tw_config* tw_conf = (tw_config*)loop->data;
 	printf("TinyWeb v1.0.0 is started, listening on %s:%d...\n", tw_conf->ip, tw_conf->port);
 	uv_run(loop, UV_RUN_DEFAULT);
 	uv_stop(loop);
@@ -721,45 +722,23 @@ int tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 	int ret;
 	char p;
 	assert(conf != NULL);
-	if ( conf->ip == NULL || (conf->ip != NULL && conf->ip[0] == '*'))
+	if (conf->ip == NULL || (conf->ip != NULL && conf->ip[0] == '*'))
 		conf->ip = "0.0.0.0";
 	struct sockaddr_in addr;
-	uv_ip4_addr( conf->ip, conf->port, &addr );
+	uv_ip4_addr(conf->ip, conf->port, &addr);
 
-	tw_config* tw_conf = calloc(1,sizeof(tw_config));
+	tw_config* tw_conf = calloc(1, sizeof(tw_config));
 	memcpy(tw_conf, conf, sizeof(tw_config));
-	//*tw_conf = *conf;
-	//设置主目录（末尾带斜杠）
-	if (conf->doc_dir && strcmpi(conf->doc_dir,"")!=0)
-	{
-		p = conf->doc_dir[strlen(conf->doc_dir) - 1];
-		if ( p == '\\' || p=='/')
-			tw_conf->doc_dir = strdup(conf->doc_dir);
-		else
-		{
-			char p[256];
-#ifdef _MSC_VER
-			snprintf(p,255, "%s\\", conf->doc_dir);
-#else
-			snprintf(p,255, "%s/", conf->doc_dir);
-#endif // _MSC_VER
 
-			tw_conf->doc_dir = strdup(p);
-		}
-	}
-	else
+	//设置主目录（末尾不带斜杠）
+	if (conf->doc_dir)
 	{
-		char path[260];
-#ifdef _MSC_VER
-		snprintf(path,259, "%s\\", getProcPath());
-#else
-		snprintf(path,259, "%s/", getProcPath());
-#endif // _MSC_VER
-		tw_conf->doc_dir = strdup(path);
+		tw_conf->doc_dir = strdup(conf->doc_dir);
 	}
+
 	printf("WebRoot Dir:%s\n", tw_conf->doc_dir);
 	//设置默认主页（分号间隔）
-	if (conf->doc_index && strcmpi(conf->doc_index,"")!=0)
+	if (conf->doc_index && strcmpi(conf->doc_index, "") != 0)
 		tw_conf->doc_index = strdup(conf->doc_index);
 	else
 		tw_conf->doc_index = strdup("index.htm;index.html");
@@ -768,9 +747,9 @@ int tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 		tw_conf->charset = strdup(conf->charset);
 	else
 		tw_conf->charset = strdup("utf-8");
-	if(loop==NULL)
+	if (loop == NULL)
 		loop = uv_default_loop();
-	ret=uv_tcp_init(loop, &tw_conf->_server);
+	ret = uv_tcp_init(loop, &tw_conf->_server);
 	if (ret < 0)
 		return ret;
 	ret = uv_tcp_bind(&tw_conf->_server, (const struct sockaddr*) &addr, 0);
@@ -799,7 +778,7 @@ void tinyweb_stop(uv_loop_t* loop)
 	if (loop == NULL)
 		loop = uv_default_loop();
 	uv_stop(loop);
-	if(loop->data)
+	if (loop->data)
 		uv_close((uv_handle_t*)&((tw_config*)loop->data)->_server, on_close_cb);
 	uv_loop_close(loop);
 }

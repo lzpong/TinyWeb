@@ -88,7 +88,7 @@ typedef struct tw_config {
 	uv_tcp_t _server;
 
 	//public data:
-	char dirlist:1; //是否允许列出目录
+	uchar dirlist:1; //是否允许列出目录
 	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
 	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
 	char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
@@ -133,6 +133,14 @@ void tinyweb_stop(uv_loop_t* loop);
 
 //=================================================
 
+//处理客户端请求
+//invoked by tinyweb when GET request comes in
+//please invoke write_uv_data() once and only once on every request, to send respone to client and close the connection.
+//if not handle this request (by invoking write_uv_data()), you can close connection using tw_close_client(client).
+//path: "/" or "/book/view/1"
+//query: the string after '?' in url, such as "id=0&value=123", maybe NULL or ""
+void tw_request(uv_stream_t* client, tw_reqHeads* heads);
+
 //返回格式华的HTTP响应内容 (需要free返回数据)
 //status：http状态,如:"200 OK"
 //content_type：文件类型，如："text/html" ；可以调用tw_get_content_type()得到
@@ -162,23 +170,6 @@ void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u
 
 //关闭客户端连接
 void tw_close_client(uv_stream_t* client);
-
-
-
-
-
-
-inline void printx(const uchar* data, uint len) {
-	uint i;
-	printf("\n-----------------------------------------------\n");
-	for (i = 0; i < len; i++) {
-		if (i > 0 && i % 16 == 0)
-			printf("\n");
-		printf("%02x ", *data);
-		data++;
-	}
-	printf("\n-----------------------------------------------\n");
-}
 
 #ifdef __cplusplus
 } // extern "C"

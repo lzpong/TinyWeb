@@ -159,6 +159,7 @@ void membuf_remove(membuf_t* buf, uint offset, uint size) {
 #pragma region 文件/文件夹检测
 
 #ifdef _MSC_VER
+#include <direct.h>
 
 //获取工作目录路径,不带'\'
 char* getWorkPath()
@@ -181,6 +182,29 @@ char* getProcPath()
 	if (i>2 && CurPath[i]=='\\')
 		CurPath[i] = 0;
 	return CurPath;
+}
+
+//建立目录,递归建立
+int makeDir(const char * path, int mod)
+{
+	char pth[513];
+	strncpy(pth, path, 512);
+	char *p = strrchr(pth, '\\');
+	if (!p)
+		p = (char*)strrchr(pth, '/');
+	if (p) {
+		if (strlen(p) == 1)
+			*p = 0;
+		p = strrchr(pth, '\\');
+		if (!p)
+			p = (char*)strrchr(pth, '/');
+		if (p) {
+			*p = 0;
+			if(!isExist(pth))
+				makeDir(pth, mod);
+		}
+	}
+	return _mkdir(path);
 }
 
 //获取文件/文件夹信息
@@ -230,7 +254,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 		"<tfoot><tr><th colspan=\"4\"><hr></th></tr></tfoot>"
 		"</table>"
 		"<address>TinyWeb Server</address>"
-		"</body></tml>\r\n<script type=\"text/javascript\">\r\nvar files={\"path\":\"%s\",\"files\":[\r\n\0\0", reqPath, reqPath, reqPath);
+		"</body></html>\r\n<script type=\"text/javascript\">\r\nvar files={\"path\":\"%s\",\"files\":[\r\n\0\0", reqPath, reqPath, reqPath);
 
 	membuf_append_data(&buf, tmp, strlen(tmp));
 	//文件(size>-1) 或 目录（size=-1）   [name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
@@ -293,6 +317,29 @@ char* getWorkPath()
 	static char CurPath[260] = { 0 };
 	getcwd(CurPath, 259);
 	return CurPath;
+}
+
+//建立目录,递归建立
+int makeDir(const char * path, int mod)
+{
+	char pth[513];
+	strncpy(pth, path, 512);
+	char *p = strrchr(pth, '\\');
+	if (!p)
+		p = (char*)strrchr(pth, '/');
+	if (p) {
+		if (strlen(p) == 1)
+			*p = 0;
+		p = strrchr(pth, '\\');
+		if (!p)
+			p = (char*)strrchr(pth, '/');
+		if (p) {
+			*p = 0;
+			if (!isExist(pth))
+				makeDir(pth, mod);
+		}
+	}
+	return mkdir(path,mod);
 }
 
 //获取程序文件所在路径,不带'/'
@@ -372,7 +419,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 		"<tfoot><tr><th colspan=\"4\"><hr></th></tr></tfoot>"
 		"</table>"
 		"<address>TinyWeb Server</address>"
-		"</body></tml>\r\n<script type=\"text/javascript\">\r\nvar files={\"path\":\"%s\",\"files\":[\r\n\0\0", reqPath, reqPath, reqPath);
+		"</body></html>\r\n<script type=\"text/javascript\">\r\nvar files={\"path\":\"%s\",\"files\":[\r\n\0\0", reqPath, reqPath, reqPath);
 
 	membuf_append_data(&buf, tmp, strlen(tmp));
 	//文件(size>-1) 或 目录（size=-1）   [name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
@@ -1464,20 +1511,45 @@ inline int day_of_year(int y, int m, int d)
 
 
 //字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
-ullong str2stmp(const char *strTime)
+llong str2stmp(const char *strTime)
 {
 	if (strTime != NULL)
 	{
 		struct tm sTime;
+		memset(&sTime, 0, sizeof(struct tm));
+		sTime.tm_isdst = -1; // daylight savings time flag
 #ifdef __GNUC__
-		strptime(strTime, "%Y-%m-%d %H:%M:%S", &sTime);
+		if (strchr(strTime, '-')) {
+			if (strlen(strTime) > 10)
+				strptime(strTime, "%Y-%m-%d %H:%M:%S", &sTime);
+			else
+				strptime(strTime, "%Y-%m-%d", &sTime);
+		}
+		else {
+			if (strlen(strTime) > 10)
+				strptime(strTime, "%Y/%m/%d %H:%M:%S", &sTime);
+			else
+				strptime(strTime, "%Y/%m/%d", &sTime);
+		}
 #else
-		sscanf(strTime, "%d-%d-%d %d:%d:%d", &sTime.tm_year, &sTime.tm_mon, &sTime.tm_mday, &sTime.tm_hour, &sTime.tm_min, &sTime.tm_sec);
+		if (strlen(strTime) > 10) {
+			if (strchr(strTime, '-'))
+				sscanf(strTime, "%d-%d-%d %d:%d:%d", &sTime.tm_year, &sTime.tm_mon, &sTime.tm_mday, &sTime.tm_hour, &sTime.tm_min, &sTime.tm_sec);
+			else
+				sscanf(strTime, "%d/%d/%d %d:%d:%d", &sTime.tm_year, &sTime.tm_mon, &sTime.tm_mday, &sTime.tm_hour, &sTime.tm_min, &sTime.tm_sec);
+		}
+		else {
+			if (strchr(strTime, '-'))
+				sscanf(strTime, "%d-%d-%d", &sTime.tm_year, &sTime.tm_mon, &sTime.tm_mday);
+			else
+				sscanf(strTime, "%d/%d/%d", &sTime.tm_year, &sTime.tm_mon, &sTime.tm_mday);
+		}
 		sTime.tm_year -= 1900;
 		sTime.tm_mon -= 1;
+		if (sTime.tm_year > 1100)  //windows 下不能超过 3000-12-31, 千年虫
+			sTime.tm_year = 1100;
 #endif
-		ullong ft = mktime(&sTime);
-		return ft;
+		return mktime(&sTime);
 	}
 	else {
 		return time(0);
@@ -1485,7 +1557,7 @@ ullong str2stmp(const char *strTime)
 }
 
 //时间戳(秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-char* stmp2str(ullong t, char* str, int strlen)
+char* stmp2str(llong t, char* str, int strlen)
 {
 	if (t < 1000000)
 		t = time(0);
