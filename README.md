@@ -1,7 +1,7 @@
 # TinyWeb v1.0.0
 auth [lzpong](https://github.com/lzpong)  
+一个基于libuv的小型Web服务器，可以接受Socket，WebSocket，http协议和设置回调函数。  
 A tiny web server based on libuv, can accept Socket,WebSocket,or http protocol,and set callBack func's.  
-一个基于libuv的小型Web服务器，可以接受Socket，WebSocket，http协议和设置回调函数。
 ```
 TinyWeb功能说明
 
@@ -31,12 +31,12 @@ auth lzpong 2016/11/24
 1.支持cookie/session
 2.支持认证
 ```
-# Use age.
-1.include the head file
+# 使用示例(Use age)
+1.包含头文件(include the head file)
 ```
 #include "tinyweb.h"
 ```
-2.set server configs ,and the callback func's
+2.设置参数和回调函数(set server configs ,and the callback func's)
 ```
 //配置TinyWeb
 tw_config conf;
@@ -46,12 +46,13 @@ conf.dirlist = 1;//是否允许查看目录列表
 conf.port = 8080;//监听端口
 //conf.doc_index = NULL;//默认主页
 //配置回调函数
-conf.on_request = on_request;
+conf.on_request = on_http_request;
 conf.on_data = on_socket_read_data;
 ```
-other congfig items see `struct tw_config` in tinyweb.h
+其他配置项详见 `struct tw_config`，在 [tinyweb.h](https://github.com/lzpong/TinyWeb/blob/master/tinyweb.h)。  
+other congfig items see `struct tw_config` in [tinyweb.h](https://github.com/lzpong/TinyWeb/blob/master/tinyweb.h).
 
-3.start server
+3.启动(start server)
 ```
 //启动TinyWeb
 tinyweb_start(uv_default_loop(), &conf);
