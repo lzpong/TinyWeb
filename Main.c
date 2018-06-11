@@ -72,35 +72,41 @@ char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* 
 	if (buf->size < 1)
 		return 1;//防止发生数据为空
 	if (pa->flag & 0x2) { //WebSocket
-		printx(buf->data, buf->size < 256 ? buf->size : 256);
+		printf(buf->data, buf->size < 256 ? buf->size : 256);
 #ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
 		if (pa->flag & 0x4) {
-			unsigned long len;
+			size_t len;
 			char *gb, *uc;
 			len = buf->size;
-			gb = U82GB(buf->data, &len);
+			unsigned int l = len;
+			gb = U82GB(buf->data, &l);
+			len = l;
 
-			printf("ws:%s\nlen=%d\n", gb,len);
+			printf("ws:%s\nlen=%zd\n", gb,len);
 
 			free(gb);
 
 
 			len = buf->size;
-			uc = enc_u82u(buf->data, &len);
+			l = len;
+			uc = enc_u82u(buf->data, &l);
+			len = l;
 			len /= 2;
-			gb = U2GB((wchar_t *)uc, &len);
-			printf("-------------------------------------------ws1:len=%d\n%s\n-------------------------------------------\n", len, gb);
+			l = len;
+			gb = U2GB((wchar_t *)uc, &l);
+			len = l;
+			printf("-------------------------------------------ws1:len=%zd\n%s\n-------------------------------------------\n", len, gb);
 			free(uc);
 			free(gb);
 		}else
 		//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
 #endif // _MSC_VER
-			printf("-------------------------------------------ws:len=%d\n%s\n-------------------------------------------\n", buf->size, buf->data);
-		unsigned long len = buf->size;
+			printf("-------------------------------------------ws:len=%zd\n%s\n-------------------------------------------\n", buf->size, buf->data);
+		size_t len = buf->size;
 		char* p = WebSocketMakeFrame(buf->data, &len, 1);//文本帧
 		tw_send_data(client, p, len, 0, 1);
 	} else { //Socket
-		printf("-------------------------------------------sk:len=%d\n%s\n-------------------------------------------\n", buf->size, buf->data);
+		printf("-------------------------------------------sk:len=%zd\n%s\n-------------------------------------------\n", buf->size, buf->data);
 		tw_send_data(client, buf->data, buf->size, 1, 0);
 	}
 	return 1;
@@ -118,7 +124,7 @@ char on_error(void* data, uv_stream_t* client, tw_peerAddr* pa, int errcode, cha
 	return 0;
 }
 
-char *on_connect(void* data, uv_stream_t* client, tw_peerAddr* pa)
+char on_connect(void* data, uv_stream_t* client, tw_peerAddr* pa)
 {
 	printf("connected: sk=%d [%s:%d]\n",pa->sk,pa->ip,pa->port);
 	return 0;

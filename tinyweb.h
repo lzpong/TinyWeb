@@ -44,7 +44,7 @@ auth lzpong 2016/11/24
 	b.支持其他静态文件：js, css, png, jpeg/jpg, gif, ico, txt, xml, json, log, wam, wav, mp3, apk
 	c.支持其他文件格式, 默认文件类型为："application/octet-stream"
 	d.支持不带扩展名文件访问
-	e.支持 Range 请求参数下载大文件
+	e.支持 Range 请求参数下载大文件(Range: bytes=sizeFrom-[sizeTo],都可正可负)
 6.支持默认index页面(index.html/index.htm)，可以自定义设置
 7.支持目录列表
 8.不允许访问根目录上级文件或文件夹
@@ -73,13 +73,13 @@ typedef struct tw_peerAddr {
 }tw_peerAddr;
 
 typedef struct tw_reqHeads {
-	char method;//0:Socket 1:GET 2:POST
+	uchar method;//0:Socket 1:GET 2:POST
 	char* host; //IP:port
 	char* path; //路径
 	char* query;//参数
 	char* data; //数据
 	size_t len; //数据长度
-	size_t Range_frm, Range_to;
+	long long Range_frm, Range_to;
 }tw_reqHeads;
 
 //服务配置
@@ -92,7 +92,7 @@ typedef struct tw_config {
 	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
 	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
 	char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
-	short port;     //服务监听端口
+	ushort port;     //服务监听端口
 	char* charset;  //文档编码(默认utf-8)
 	//数据
 	void* data;//用户数据,如对象指针
@@ -106,7 +106,7 @@ typedef struct tw_config {
 	//heads成员不需要free
 	char (*on_request)(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* heads);
 
-	//Socket 或 WebSocket 数据, 可以通过buf->flag判断
+	//Socket 或 WebSocket 数据, 可以通过buf->flag 或 pa->flag判断
 	//buf成员不需要free
 	char (*on_data)(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* buf);
 
@@ -148,7 +148,7 @@ void tw_request(uv_stream_t* client, tw_reqHeads* heads);
 //content_length：can be -1 if content is c_str (end with NULL)
 //respone_size：if not NULL,可以获取发送的数据长度 the size of respone will be writen to request
 //returns malloc()ed c_str, need free() by caller
-char* tw_format_http_respone(uv_stream_t* client, const char* status, const char* content_type, const char* content, int content_length, int* respone_size);
+char* tw_format_http_respone(uv_stream_t* client, const char* status, const char* content_type, const char* content, size_t content_length, size_t* respone_size);
 
 //根据扩展名返回文件类型 content_type
 //可以传入路径/文件名/扩展名
@@ -159,7 +159,7 @@ const char* tw_get_content_type(const char* fileExt);
 //len： 数据长度, -1 将自动计算数据长度
 //need_copy_data：是否需要复制数据
 //need_free_data：是否需要free数据, 如果need_copy_data非零则忽略此参数
-void tw_send_data(uv_stream_t* client, const void* data, unsigned int len, int need_copy_data, int need_free_data);
+void tw_send_data(uv_stream_t* client, const void* data, size_t len, size_t need_copy_data, size_t need_free_data);
 
 //发送'200 OK' 响应; 不会释放(free)传入的数据(u8data)
 //content_type：Content Type 文档类型
