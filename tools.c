@@ -239,7 +239,7 @@ char isDir(const char* path)
 	return (fd.name[0] && (fd.attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-//列表目录
+//返回列表目录Json字符串,need free the return
 char* listDir(const char* fullpath, const char* reqPath)
 {
 	int fnum = 0;
@@ -375,7 +375,7 @@ char isFile(const char* path)
 	return 0;
 }
 
-//列表目录
+//返回列表目录Json字符串,need free the return
 char* listDir(const char* fullpath, const char* reqPath)
 {
 	int fnum = 0;
@@ -1462,15 +1462,17 @@ inline int day_of_year(int y, int m, int d)
 
 //获取格林制（GMT）时间: "Wed, 18 Jul 2018 06:02:42 GMT"
 //szDate: 存放GMT时间的缓存区(至少 char[30])，外部传入
+//szLen: szDate的长度大小
 //addSecond: 当前时间加上多少秒
-void getGmtTime(char* szDate,int addSecond)
+char* getGmtTime(char* szDate,int szLen,int addSecond)
 {
 	time_t rawTime;
 	struct tm* timeInfo;
 	time(&rawTime);
 	rawTime += addSecond;
 	timeInfo = gmtime(&rawTime);
-	strftime(szDate, sizeof(szDate), "%a, %d %b %Y %H:%M:%S GMT", timeInfo);
+	strftime(szDate, szLen, "%a, %d %b %Y %H:%M:%S GMT", timeInfo);
+	return szDate;
 }
 
 //字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
