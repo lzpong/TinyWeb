@@ -226,6 +226,10 @@ extern "C" {
 	//获取当天已逝去的秒数
 	size_t GetDaySecond();
 
+	//获取格林制（GMT）时间: "Wed, 18 Jul 2018 06:02:42 GMT"
+	//szDate: 存放GMT时间的缓存区(至少 char[30])，外部传入
+	void getGmtTime(char* szDate);
+
 	//字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
 	llong str2stmp(const char *strTime);
 

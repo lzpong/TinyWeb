@@ -64,6 +64,12 @@ char on_request(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* h
 //	tw_send_200_OK(client, "text/html", tmp, -1, 0);
 //#endif // _MSC_VER
 //
+	printf("  Query: %s\n",heads->query);
+	printf("  Path: %s\n",heads->path);
+	printf("  Host: %s\n",heads->host);
+	printf("  Cookie: %s\n", heads->cookie);
+	printf("  Range: %lld-%lld\n",heads->Range_frm,heads->Range_to);
+	printf("  data(%lld): %s\n", heads->len,heads->data);
 	return 0;
 }
 

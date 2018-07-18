@@ -53,10 +53,10 @@ auth lzpong 2016/11/24
 	b.WebSocket 数据回调
 	c.socket 数据回调
 10.支持x64,支持超过2G大文件
-
+11.支持cookie/setcookie
+12.支持添加自定义头部信息
 ==============future
-1.支持cookie/session
-2.支持认证
+
 
 #endif
 
@@ -79,6 +79,7 @@ typedef struct tw_reqHeads {
 	char* path; //路径
 	char* query;//参数
 	char* data; //数据
+	char* cookie;//cookie
 	size_t len; //数据长度
 	long long Range_frm, Range_to;
 }tw_reqHeads;
@@ -105,15 +106,17 @@ typedef struct tw_config {
 	//返回0表示没有适合的处理请求，将自动查找文件/文件夹，若未找到则发送404响应
 	//此功能便于程序返回自定义功能
 	//heads成员不需要free
+	//pa->flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
 	char (*on_request)(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* heads);
 
 	//Socket 或 WebSocket 数据, 可以通过buf->flag 或 pa->flag判断
 	//buf成员不需要free
+	//pa->flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
 	char (*on_data)(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* buf);
 
 	//Socket 检测到错误(此时链接可能已经断开)
 	//错误消息格式："%d:%s,%s,%s"
-	//flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
+	//pa->flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
 	char (*on_error)(void* data, uv_stream_t* client, tw_peerAddr* pa,int errcode, char* errstr);
 
 	//Socket 关闭(此时链接可能已经断开)
@@ -134,6 +137,13 @@ void tinyweb_stop(uv_loop_t* loop);
 
 //=================================================
 
+//获取头部 SetCookie 字段值
+//set_cookie: 缓存区(至少 110+strlen(domain)=strlen(path) )，外部传入
+//expires: 过期时间,秒
+//domain: Domain, 可以是 heads->host，外部传入
+//path: Path, 可以是 heads->path，外部传入
+void tw_make_cookie(char* set_cookie, int expires, char* domain, char* path);
+
 //处理客户端请求
 //invoked by tinyweb when GET request comes in
 //please invoke write_uv_data() once and only once on every request, to send respone to client and close the connection.
@@ -144,12 +154,13 @@ void tw_request(uv_stream_t* client, tw_reqHeads* heads);
 
 //返回格式华的HTTP响应内容 (需要free返回数据)
 //status：http状态,如:"200 OK"
+//ext_heads：额外的头部字符串，如："head1: this-is-head1\r\nSetCookie: TINY_SSID=Tiny1531896250879; Expires=...\r\n"
 //content_type：文件类型，如："text/html" ；可以调用tw_get_content_type()得到
 //content：使用utf-8编码格式的数据，特别是html文件类型的响应
 //content_length：can be -1 if content is c_str (end with NULL)
 //respone_size：if not NULL,可以获取发送的数据长度 the size of respone will be writen to request
 //returns malloc()ed c_str, need free() by caller
-char* tw_format_http_respone(uv_stream_t* client, const char* status, const char* content_type, const char* content, size_t content_length, size_t* respone_size);
+char* tw_format_http_respone(uv_stream_t* client, const char* status, const char* ext_heads, const char* content_type, const char* content, size_t content_length, size_t* respone_size);
 
 //根据扩展名返回文件类型 content_type
 //可以传入路径/文件名/扩展名
@@ -160,14 +171,14 @@ const char* tw_get_content_type(const char* fileExt);
 //len： 数据长度, -1 将自动计算数据长度
 //need_copy_data：是否需要复制数据
 //need_free_data：是否需要free数据, 如果need_copy_data非零则忽略此参数
-void tw_send_data(uv_stream_t* client, const void* data, size_t len, size_t need_copy_data, size_t need_free_data);
+void tw_send_data(uv_stream_t* client, const void* data, size_t len, char need_copy_data, char need_free_data);
 
 //发送'200 OK' 响应; 不会释放(free)传入的数据(u8data)
 //content_type：Content Type 文档类型
 //u8data：utf-8编码的数据
 //content_length：数据长度，为-1时自动计算(strlen)
 //respone_size：获取响应最终发送的数据长度，为0表示放不需要取此长度
-void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u8data, size_t content_length, size_t* respone_size);
+void tw_send_200_OK(uv_stream_t* client, const char* content_type, const char* ext_heads, const void* u8data, size_t content_length, size_t* respone_size);
 
 //关闭客户端连接
 void tw_close_client(uv_stream_t* client);

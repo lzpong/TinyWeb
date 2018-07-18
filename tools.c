@@ -1460,6 +1460,17 @@ inline int day_of_year(int y, int m, int d)
 	return s;
 }
 
+//获取格林制（GMT）时间: "Wed, 18 Jul 2018 06:02:42 GMT"
+//szDate: 存放GMT时间的缓存区(至少 char[30])，外部传入
+void getGmtTime(char* szDate)
+{
+	time_t rawTime;
+	struct tm* timeInfo;
+	time(&rawTime);
+	timeInfo = gmtime(&rawTime);
+	strftime(szDate, sizeof(szDate), "%a, %d %b %Y %H:%M:%S GMT", timeInfo);
+}
+
 //字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
 llong str2stmp(const char *strTime)
 {
