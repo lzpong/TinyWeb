@@ -92,7 +92,6 @@ char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* 
 
 			free(gb);
 
-
 			len = buf->size;
 			l = len;
 			uc = enc_u82u(buf->data, &l);
@@ -104,11 +103,13 @@ char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* 
 			printf("-------------------------------------------ws1:len=%zd\n%s\n-------------------------------------------\n", len, gb);
 			free(uc);
 			free(gb);
-		}else
-		//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
-#endif // _MSC_VER
+		}
+		else {
+			//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
 			printf("-------------------------------------------ws:len=%zd\n%s\n-------------------------------------------\n", buf->size, buf->data);
-		size_t len = buf->size;
+		}
+#endif // _MSC_VER
+		ulong len = buf->size;
 		char* p = WebSocketMakeFrame(buf->data, &len, 1);//文本帧
 		tw_send_data(client, p, len, 0, 1);
 	} else { //Socket

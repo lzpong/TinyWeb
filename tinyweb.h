@@ -139,7 +139,7 @@ void tinyweb_stop(uv_loop_t* loop);
 
 //获取头部 SetCookie 字段值
 //set_cookie: 缓存区(至少 110+strlen(domain)=strlen(path) )，外部传入
-//expires: 过期时间,秒
+//expires: 多少秒后过期
 //domain: Domain, 可以是 heads->host，外部传入
 //path: Path, 可以是 heads->path，外部传入
 void tw_make_cookie(char* set_cookie, int expires, char* domain, char* path);

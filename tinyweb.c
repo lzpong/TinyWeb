@@ -107,13 +107,14 @@ void tw_send_data(uv_stream_t* client, const void* data, size_t len, char need_c
 
 //获取头部 SetCookie 字段值
 //setCookie: 缓存区(至少 110+strlen(domain)=strlen(path) )，外部传入
+//expires: 多少秒后过期
 //domain: Domain, 可以是 heads->host，外部传入
 //path: Path, 可以是 heads->path，外部传入
 void tw_make_cookie(char* set_cookie,int expires,char* domain,char* path)
 {
 	char val[30];
 	char szDate[30];
-	getGmtTime(szDate);
+	getGmtTime(szDate,expires);
 	path == NULL ? path = "/" : 0;
 	snprintf(val, 100, "Tiny%lld", str2stmp(NULL));
 	snprintf(set_cookie, sizeof(set_cookie), "SetCookie: TINY_SSID=%s; Expires=%s; Path=%s; Domain=%s;\r\n"
@@ -166,7 +167,7 @@ char* tw_format_http_respone(uv_stream_t* client, const char* status, const char
 	size_t totalsize, header_size;
 	char* respone;
 	char szDate[30];
-	getGmtTime(szDate);
+	getGmtTime(szDate,0);
 	ext_heads == NULL ? ext_heads = "" : 0;
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	if (content_length == 0 || content_length == (size_t)-1)
@@ -198,7 +199,7 @@ static void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ex
 	size_t len = 76 + strlen(heads->path);
 	char buffer[10245];
 	char szDate[30];
-	getGmtTime(szDate);
+	getGmtTime(szDate,0);
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 301 Moved Permanently\r\nDate: %s\r\n"
 		"Server: TinyWeb\r\nLocation: http://%s%s/%s%s\r\nConnection: close\r\n"
@@ -249,7 +250,7 @@ static char tw_http_send_file(uv_stream_t* client, const char* content_type, con
 			tw_404_not_found(client, heads->path, ext_heads);
 			return 0;
 		}
-		getGmtTime(szDate);
+		getGmtTime(szDate,0);
 		respone = (char*)malloc(300 + 1);
 		int respone_size;
 		if (heads->Range_frm == 0) //200 OK
@@ -476,28 +477,25 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 			while (isspace(*heads->path)) heads->path++;
 			start = strchr(heads->path, ' ');
 			if (start) *start = 0;
-			//
-			url_decode(heads->path);
+			//url含有转义编码字符
+			if (strstr(heads->path, "%") != 0)
+			{
+				url_decode(heads->path);
 #ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
-			size_t len = strlen(heads->path);
-			char *gb = U82GB(heads->path, &(unsigned int)len);
-			strncpy(heads->path, gb, len);
-			heads->path[len] = 0;
-			free(gb);
-			//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
+				size_t len = strlen(heads->path);
+				char *gb = U82GB(heads->path, &(unsigned int)len);
+				strncpy(heads->path, gb, len);
+				heads->path[len] = 0;
+				free(gb);
+				//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
 #endif // _MSC_VER
+			}
 			//query param
-			if (1 == heads->method) { //GET
-				p = strchr(heads->path, '?');
-				if (p) {
-					heads->query = p + 1;
-					*p = 0;
-				}
+			p = strchr(heads->path, '?');
+			if (p) {
+				heads->query = p + 1;
+				*p = 0;
 			}
-			else {  //POST
-				heads->query = heads->data;
-			}
-			////------------尽可能的合并 "../"  "/./"
 			//确保开头为'/'
 			if (*heads->path != '/') {
 				heads->path--;
@@ -510,31 +508,34 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 				*(p + 1) = '/';
 				*(p + 2) = 0;
 			}
-			//去掉"/./"
-			while ((p = strstr(heads->path, "/./"))) {
-				memmove(p, p + 2, strlen(p + 2) + 1);
-			}
-			//尽可能的合并"../"
-			while ((p = strstr(heads->path, "/.."))) {//存在 ..
-				if ((p - heads->path) <= 1) {
-					if ((start = strchr(heads->path + 2, '/')))
-						heads->path = start;
-					else
-						*p = 0;
-					continue;
+			////------------尽可能的合并 "../"  "/./"
+			if (strstr(heads->path, "./") != 0)
+			{
+				//去掉"/./"
+				while ((p = strstr(heads->path, "/./"))) {
+					memmove(p, p + 2, strlen(p + 2) + 1);
 				}
-				*(p - 1) = 0;
-				start = strrchr(heads->path, '/');
-				if (start == NULL)
-					start = heads->path;
-				key = strchr(p + 2, '/');
-				if (key)
-					p = key;
-				else
-					break;
-				memmove(start, p, strlen(p) + 1);
+				//尽可能的合并"../"
+				while ((p = strstr(heads->path, "/.."))) {//存在 ..
+					if ((p - heads->path) <= 1) {
+						if ((start = strchr(heads->path + 2, '/')))
+							heads->path = start;
+						else
+							*p = 0;
+						continue;
+					}
+					*(p - 1) = 0;
+					start = strrchr(heads->path, '/');
+					if (start == NULL)
+						start = heads->path;
+					key = strchr(p + 2, '/');
+					if (key)
+						p = key;
+					else
+						break;
+					memmove(start, p, strlen(p) + 1);
+				}
 			}
-			////------------end 尽可能的合并 "../"  "/./"
 
 			key = NULL;
 			//从第二行开始循环处理 头部
@@ -546,13 +547,11 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 				if (key = strstr(head, "Sec-WebSocket-Key: "))
 				{
 					key += 19;
-					while (isspace(*key)) key++;
 				}
 				//search host
 				else if (heads->host = strstr(head, "Host: "))
 				{
 					heads->host += 6;
-					while (isspace(*heads->host)) heads->host++;
 				}
 				//Range: bytes=sizeFrom-[sizeTo]  (sizeTo 可能没有,或不正确,表示整个文件大小)
 				// (sizeFrom 为负数,表示从文件末尾反过来的位置,即fileSize-sizeFrom)
@@ -581,7 +580,6 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 				else if (heads->cookie = strstr(head, "Cookie: "))
 				{
 					heads->cookie += 8;
-					while (isspace(*heads->cookie)) heads->cookie++;
 				}
 				//下一行 头部
 				head = strtok(NULL, delims);

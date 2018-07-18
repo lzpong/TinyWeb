@@ -255,7 +255,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 	snprintf(szFind, 255, "%s\\*", fullpath);
 	hFind = _findfirsti64(szFind, &fdt);
 	//[name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
-	while (hFind != INVALID_HANDLE_VALUE)//一次查找循环
+	while (hFind != -1)//一次查找循环
 	{
 		//最后修改时间
 		struct tm *t = localtime(&fdt.time_write);//年月日 时分秒
@@ -1462,11 +1462,13 @@ inline int day_of_year(int y, int m, int d)
 
 //获取格林制（GMT）时间: "Wed, 18 Jul 2018 06:02:42 GMT"
 //szDate: 存放GMT时间的缓存区(至少 char[30])，外部传入
-void getGmtTime(char* szDate)
+//addSecond: 当前时间加上多少秒
+void getGmtTime(char* szDate,int addSecond)
 {
 	time_t rawTime;
 	struct tm* timeInfo;
 	time(&rawTime);
+	rawTime += addSecond;
 	timeInfo = gmtime(&rawTime);
 	strftime(szDate, sizeof(szDate), "%a, %d %b %Y %H:%M:%S GMT", timeInfo);
 }
