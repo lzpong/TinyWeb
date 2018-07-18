@@ -167,7 +167,7 @@ void tw_send_data(uv_stream_t* client, const void* data, size_t len, size_t need
 //u8data：utf-8编码的数据
 //content_length：数据长度，为-1时自动计算(strlen)
 //respone_size：获取响应最终发送的数据长度，为0表示放不需要取此长度
-void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u8data, int content_length, int* respone_size);
+void tw_send_200_OK(uv_stream_t* client, const char* content_type, const void* u8data, size_t content_length, size_t* respone_size);
 
 //关闭客户端连接
 void tw_close_client(uv_stream_t* client);

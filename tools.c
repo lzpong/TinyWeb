@@ -213,8 +213,8 @@ inline struct _finddata_t GetFileInfo(const char* lpPath)
 {
 	struct _finddata_t fileinfo;
 	memset(&fileinfo, 0, sizeof(struct _finddata_t));
-	HANDLE hFind = _findfirst(lpPath, &fileinfo);
-	FindClose(hFind);
+	intptr_t hFind = _findfirst(lpPath, &fileinfo);
+	_findclose(hFind);
 	return fileinfo;
 }
 
@@ -249,7 +249,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 
 	//文件(size>-1) 或 目录（size=-1）   [name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
 	struct _finddatai64_t fdt;
-	HANDLE hFind;
+	intptr_t hFind;
 	char szFind[256];
 
 	snprintf(szFind, 255, "%s\\*", fullpath);
@@ -277,7 +277,7 @@ char* listDir(const char* fullpath, const char* reqPath)
 		if (_findnexti64(hFind, &fdt))
 			break;//下一个文件
 	}
-	FindClose(hFind);
+	_findclose(hFind);
 	//membuf_remove(&buf, buf.size-1, 1);
 	buf.data[--buf.size] = 0; buf.data[--buf.size] = 0;
 	membuf_append_format(&buf, "],total:%d}", fnum);
