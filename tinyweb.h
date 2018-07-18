@@ -41,10 +41,10 @@ auth lzpong 2016/11/24
 4.支持指定根目录（默认程序所在目录）
 5.支持任意格式文件访问(带/不带扩展名, 文件下载)
 	a.支持静态网页访问：html/htm
-	b.支持其他静态文件：js, css, png, jpeg/jpg, gif, ico, txt, xml, json, log, wam, wav, mp3, apk
+	b.支持其他静态文件：js, css, png, jpeg/jpg, gif, ico, txt, xml, json, log, wam, wav, mp3, mp4, apk 等
 	c.支持其他文件格式, 默认文件类型为："application/octet-stream"
 	d.支持不带扩展名文件访问
-	e.支持 Range 请求参数下载大文件(Range: bytes=sizeFrom-[sizeTo],都可正可负)
+	e.支持 Range 请求参数下载大文件(Range: bytes=sizeFrom-[sizeTo],支持负反向计算)
 6.支持默认index页面(index.html/index.htm)，可以自定义设置
 7.支持目录列表
 8.不允许访问根目录上级文件或文件夹
@@ -68,7 +68,7 @@ typedef struct tw_peerAddr {
 	uchar  flag;//标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧)
 	ushort port;
 	ushort fport;
-	uint   sk;
+	size_t   sk;
 	char   ip[17];
 	char   fip[17];
 }tw_peerAddr;
@@ -86,10 +86,10 @@ typedef struct tw_reqHeads {
 
 //服务配置
 typedef struct tw_config {
-	//private data:
+//private data:
 	uv_tcp_t _server;
 
-	//public data:
+//public data:
 	uchar dirlist:1; //是否允许列出目录
 	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
 	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
@@ -115,7 +115,7 @@ typedef struct tw_config {
 	char (*on_data)(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* buf);
 
 	//Socket 检测到错误(此时链接可能已经断开)
-	//错误消息格式："%d:%s,%s,%s"
+	//错误消息格式："%d:%s,%s"
 	//pa->flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
 	char (*on_error)(void* data, uv_stream_t* client, tw_peerAddr* pa,int errcode, char* errstr);
 
@@ -137,21 +137,13 @@ void tinyweb_stop(uv_loop_t* loop);
 
 //=================================================
 
-//获取头部 SetCookie 字段值
+//制造头部 SetCookie 字段和值
 //set_cookie: 缓存区(至少 110+strlen(domain)=strlen(path) )，外部传入
 //ckLen: set_cookie的长度
 //expires: 多少秒后过期
 //domain: Domain, 可以是 heads->host，外部传入
 //path: Path, 可以是 heads->path，外部传入
 void tw_make_cookie(char* set_cookie, int ckLen, int expires, char* domain, char* path);
-
-//处理客户端请求
-//invoked by tinyweb when GET request comes in
-//please invoke write_uv_data() once and only once on every request, to send respone to client and close the connection.
-//if not handle this request (by invoking write_uv_data()), you can close connection using tw_close_client(client).
-//path: "/" or "/book/view/1"
-//query: the string after '?' in url, such as "id=0&value=123", maybe NULL or ""
-void tw_request(uv_stream_t* client, tw_reqHeads* heads);
 
 //返回格式华的HTTP响应内容 (需要free返回数据)
 //status：http状态,如:"200 OK"
@@ -179,7 +171,14 @@ void tw_send_data(uv_stream_t* client, const void* data, size_t len, char need_c
 //u8data：utf-8编码的数据
 //content_length：数据长度，为-1时自动计算(strlen)
 //respone_size：获取响应最终发送的数据长度，为0表示放不需要取此长度
-void tw_send_200_OK(uv_stream_t* client, const char* content_type, const char* ext_heads, const void* u8data, size_t content_length, size_t* respone_size);
+void tw_send_200_OK(uv_stream_t* client, const char* ext_heads, const char* content_type, const void* u8data, size_t content_length, size_t* respone_size);
+
+//http协议发送文件,异步
+//file_path: 文件路径
+void tw_http_send_file(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads, const char* content_type, const char* file_path);
+
+//发送301响应,路径重定位
+void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads);
 
 //关闭客户端连接
 void tw_close_client(uv_stream_t* client);

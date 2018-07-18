@@ -120,19 +120,19 @@ char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* 
 
 char on_close(void* data, uv_stream_t* client, tw_peerAddr* pa)
 {
-	printf("closed: sk=%d [%s:%d]  flag=%d\n", pa->sk, pa->ip, pa->port,pa->flag);
+	printf("closed: sk=%zd [%s:%d]  flag=%d\n", pa->sk, pa->ip, pa->port,pa->flag);
 	return 0;
 }
 
 char on_error(void* data, uv_stream_t* client, tw_peerAddr* pa, int errcode, char* errstr)
 {
-	printf("error: sk=%d [%s:%d]  flag=%d  %s\n", pa->sk, pa->ip, pa->port,pa->flag, errstr);
+	printf("error: sk=%zd [%s:%d]  flag=%d  %s\n", pa->sk, pa->ip, pa->port,pa->flag, errstr);
 	return 0;
 }
 
 char on_connect(void* data, uv_stream_t* client, tw_peerAddr* pa)
 {
-	printf("connected: sk=%d [%s:%d]\n",pa->sk,pa->ip,pa->port);
+	printf("connected: sk=%zd [%s:%d]\n",pa->sk,pa->ip,pa->port);
 	return 0;
 }
 
