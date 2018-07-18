@@ -1,6 +1,6 @@
-# TinyWeb v1.0.0
+# TinyWeb v1.2.1
 auth [lzpong](https://github.com/lzpong)
-一个基于libuv的小型Web服务器，可以接受Socket，WebSocket，http协议和设置回调函数。  
+一个基于libuv的小型Web服务器，可以接受Socket，WebSocket，http协议和设置回调函数。
 A tiny web server based on libuv, can accept Socket,WebSocket,or http protocol,and set callBack func's.  
 ```
 TinyWeb功能说明
@@ -15,10 +15,10 @@ auth lzpong 2016/11/24
 4.支持指定根目录（默认程序所在目录）
 5.支持任意格式文件访问(带/不带扩展名, 文件下载)
 	a.支持静态网页访问：html/htm
-	b.支持其他静态文件：js, css, png, jpeg/jpg, gif, ico, txt, xml, json, log, wam, wav, mp3, apk
+	b.支持其他静态文件：js, css, png, jpeg/jpg, gif, ico, txt, xml, json, log, wam, wav, mp3, mp4, apk 等
 	c.支持其他文件格式, 默认文件类型为："application/octet-stream"
 	d.支持不带扩展名文件访问
-	e.支持 Range 请求参数下载大文件
+	e.支持 Range 请求参数下载大文件(Range: bytes=sizeFrom-[sizeTo],支持负反向计算)
 6.支持默认index页面(index.html/index.htm)，可以自定义设置
 7.支持目录列表
 8.不允许访问根目录上级文件或文件夹
@@ -27,10 +27,10 @@ auth lzpong 2016/11/24
 	b.WebSocket 数据回调
 	c.socket 数据回调
 10.支持x64,支持超过2G大文件
-
+11.支持cookie/setcookie
+12.支持添加自定义头部信息
 ==============future
-1.支持cookie/session
-2.支持认证
+
 ```
 # 使用示例(Use age)
 1.包含头文件(include the head file)
@@ -50,7 +50,7 @@ conf.port = 8080;//监听端口
 conf.on_request = on_http_request;
 conf.on_data = on_socket_read_data;
 ```
-其他配置项详见 `struct tw_config`，在 [tinyweb.h](https://github.com/lzpong/TinyWeb/blob/master/tinyweb.h)。  
+其他配置项详见 `struct tw_config`，在 [tinyweb.h](https://github.com/lzpong/TinyWeb/blob/master/tinyweb.h)。
 other congfig items see `struct tw_config` in [tinyweb.h](https://github.com/lzpong/TinyWeb/blob/master/tinyweb.h).
 
 3.启动(start server)
