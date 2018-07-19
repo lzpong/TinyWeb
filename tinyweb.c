@@ -109,8 +109,7 @@ void tw_send_data(uv_stream_t* client, const void* data, size_t len, char need_c
 //expires: 多少秒后过期
 //domain: Domain, 可以是 heads->host，外部传入
 //path: Path, 可以是 heads->path，外部传入
-void tw_make_cookie(char* set_cookie,int ckLen,int expires,char* domain,char* path)
-{
+void tw_make_cookie(char* set_cookie,int ckLen,int expires,char* domain,char* path) {
 	char val[30];
 	char szDate[30];
 	getGmtTime(szDate,30,expires);
@@ -125,8 +124,7 @@ void tw_make_cookie(char* set_cookie,int ckLen,int expires,char* domain,char* pa
 //u8data：utf-8编码的数据
 //content_length：数据长度，为-1时自动计算(strlen)
 //respone_size：获取响应最终发送的数据长度，为0表示放不需要取此长度
-void tw_send_200_OK(uv_stream_t* client, const char* content_type, const char* ext_heads, const void* u8data, size_t content_length, size_t* respone_size)
-{
+void tw_send_200_OK(uv_stream_t* client, const char* content_type, const char* ext_heads, const void* u8data, size_t content_length, size_t* respone_size) {
 	size_t repSize;
 	const char *type = strchr(content_type, '/');
 	//有'.'    没有'/'   至少有两个'/'    '/'是在开头    '/'是在末尾
@@ -196,7 +194,7 @@ static void tw_404_not_found(uv_stream_t* client, const char* pathinfo, const ch
 //发送301响应,路径重定位
 void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads) {
 	size_t len = 76 + strlen(heads->path);
-	char buffer[10245];
+	char buffer[1245];
 	char szDate[30];
 	ext_heads == NULL ? ext_heads = "" : 0;
 	getGmtTime(szDate,30,0);
@@ -333,7 +331,7 @@ const char* tw_get_content_type(const char* fileExt) {
 	else if (strcmpi(fileExt, "mp3") == 0)
 		return "audio/mp3";
 	else if (strcmpi(fileExt, "mp4") == 0)
-		return "audio/mp4";
+		return "video/mp4";
 	else if (strcmpi(fileExt, "apk") == 0)
 		return "application/vnd.android.package-archive";
 	else
@@ -454,7 +452,7 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 
 //获取http头信息,返回指向 Sec-WebSocket-Key 的指针
 static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
-	char *key, *start, *head, *p;
+	char *key=NULL, *start, *head, *p;
 	char delims[] = "\r\n";
 	char* data = strstr(buf->base, "\r\n\r\n");
 	if (data) {
@@ -745,7 +743,7 @@ static char tw_getPeerAddr(uv_stream_t* client, tw_peerAddr* pa)
 			pa->sk = client->io_watcher.fd;
 #endif
 		int er = uv_tcp_getpeername((uv_tcp_t*)client, (struct sockaddr*)peeraddr, &addrlen);
-		if (er < 0) 
+		if (er < 0)
 			memset(peeraddr, 0, addrlen);
 		er = uv_tcp_getsockname((uv_tcp_t*)client, (struct sockaddr*)hostaddr, &addrlen);
 		if (er < 0)
