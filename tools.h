@@ -137,30 +137,26 @@ extern "C" {
 	//Base64解码,需要释放返回值(need free return)
 	char* base64_Decode(char* const encoded_string);
 
-	//-----------------------------------------------------------------------------------Hash1加密  win/unix
+	//-----------------------------------------------------------------------------------SHA1计算摘要  win/unix
 
 	typedef struct SHA1_CONTEXT {
 		char bFinal : 1;//是否计算完成
 		uint  h0, h1, h2, h3, h4;
 		uint  nblocks;
 		uint  count;
-		uchar buf[64];
+		uchar buf[64];//返回SHA1结果不是字符串,是定长的20字节数据,中间可能有'\0',,要作为字符输出:printf("%02X ", sh.buf[i]);
 	} SHA1_CONTEXT;
 	//初始化/重置结构体
 	void hash1_Reset(SHA1_CONTEXT* hd);
 
-	/* Update the message digest with the contents of INBUF with length INLEN. */
+	/* 使用长度为 inlen 的 inbuf 内容更新消息摘要。 */
 	void hash1_Write(SHA1_CONTEXT* hd, uchar *inbuf, size_t inlen);
 
-	/* The routine final terminates the computation and returns the digest.
-	* The handle is prepared for a new cycle, but adding bytes to the
-	* handle will the destroy the returned buffer.
-	* Returns: 20 bytes representing the digest.
+	/*例程final终止计算并返回摘要。
+	*句柄准备用于新的循环，但是向句柄添加字节将破坏返回的缓冲区。
+	*返回：表示摘要的20个字节。
 	*/
 	void hash1_Final(SHA1_CONTEXT* hd);
-
-	//取得hash值: hd->buf
-	uchar* hash1_Get(SHA1_CONTEXT* hd);
 
 	//-----------------------------------------------------------------------------------url编码解码  win/unix
 

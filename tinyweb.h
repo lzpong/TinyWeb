@@ -55,7 +55,7 @@ auth lzpong 2016/11/24
 10.支持x64,支持超过2G大文件
 11.支持cookie/setcookie
 12.支持添加自定义头部信息
-==============future
+==============stable
 
 
 #endif
@@ -119,7 +119,7 @@ typedef struct tw_config {
 	//pa->flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
 	char (*on_error)(void* data, uv_stream_t* client, tw_peerAddr* pa,int errcode, char* errstr);
 
-	//Socket 关闭(此时链接可能已经断开)
+	//Socket 已关闭(此时链接已经断开)
 	//flag:标志字节 ([0~7]: [0]是否需要保持连接<非长连接为http> [1]是否WebSocket
 	char (*on_close)(void* data, uv_stream_t* client, tw_peerAddr* pa);
 } tw_config;

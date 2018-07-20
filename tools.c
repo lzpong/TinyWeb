@@ -1012,26 +1012,6 @@ static inline u32 rol(u32 x, int n)
 #define rol(x,n) ( ((x) << (n)) | ((x) >> (32-(n))) )
 #endif
 
-#define K1  0x5A827999L
-#define K2  0x6ED9EBA1L
-#define K3  0x8F1BBCDCL
-#define K4  0xCA62C1D6L
-#define F1(x,y,z)   ( z ^ ( x & ( y ^ z ) ) )
-#define F2(x,y,z)   ( x ^ y ^ z )
-#define F3(x,y,z)   ( ( x & y ) | ( z & ( x | y ) ) )
-#define F4(x,y,z)   ( x ^ y ^ z )
-
-#define M(i) ( tm = x[i&0x0f] ^ x[(i-14)&0x0f]    \
-               ^ x[(i-8)&0x0f] ^ x[(i-3)&0x0f]    \
-               , (x[i&0x0f] = rol(tm,1)) )
-
-#define R(a,b,c,d,e,f,k,m)  do { e += rol( a, 5 ) \
-            + f( b, c, d )                        \
-            + k                                   \
-            + m;                                  \
-        b = rol( b, 30 );                         \
-    } while(0)
-
 void hash1_Reset(SHA1_CONTEXT* hd)
 {
 	hd->bFinal = 0;
@@ -1073,6 +1053,26 @@ static void hash1_transform(SHA1_CONTEXT* hd, uchar *data)
 	}
 	}
 #endif
+
+#define K1  0x5A827999L
+#define K2  0x6ED9EBA1L
+#define K3  0x8F1BBCDCL
+#define K4  0xCA62C1D6L
+#define F1(x,y,z)   ( z ^ ( x & ( y ^ z ) ) )
+#define F2(x,y,z)   ( x ^ y ^ z )
+#define F3(x,y,z)   ( ( x & y ) | ( z & ( x | y ) ) )
+#define F4(x,y,z)   ( x ^ y ^ z )
+
+#define M(i) ( tm = x[i&0x0f] ^ x[(i-14)&0x0f]    \
+               ^ x[(i-8)&0x0f] ^ x[(i-3)&0x0f]    \
+               , (x[i&0x0f] = rol(tm,1)) )
+
+#define R(a,b,c,d,e,f,k,m)  do { e += rol( a, 5 ) \
+            + f( b, c, d )                        \
+            + k                                   \
+            + m;                                  \
+        b = rol( b, 30 );                         \
+    } while(0)
 
 	R(a, b, c, d, e, F1, K1, x[0]);
 	R(e, a, b, c, d, F1, K1, x[1]);
@@ -1260,13 +1260,6 @@ void hash1_Final(SHA1_CONTEXT* hd)
 	hd->bFinal = 1;
 }
 
-uchar* hash1_Get(SHA1_CONTEXT* hd)
-{
-	if (!hd->bFinal)
-		hash1_Final(hd);
-	return hd->buf;
-}
-
 #pragma endregion
 
 //-----------------------------------------------------------------------------------WebSocket  win/linux
@@ -1291,7 +1284,7 @@ char* WebSocketHandShak(const char* key)
 	hash1_Reset(&hd);
 	hash1_Write(&hd, (uchar*)akey, strlen(akey));
 	hash1_Final(&hd);
-	p = base64_Encode(hd.buf, strlen((char*)hd.buf));
+	p = base64_Encode(hd.buf, 20);
 	len = snprintf(acc, 164, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", p);
 	free(p);
 
