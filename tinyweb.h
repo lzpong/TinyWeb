@@ -55,7 +55,9 @@ auth lzpong 2016/11/24
 10.支持x64,支持超过2G大文件
 11.支持cookie/setcookie
 12.支持添加自定义头部信息
-==============stable
+13.支持POST较大的数据(支持分包发送的http Post内容)
+==============stable,future
+14.支持分包发送的http头部(http get)
 
 
 #endif
@@ -80,7 +82,8 @@ typedef struct tw_reqHeads {
 	char* query;//参数
 	char* data; //数据
 	char* cookie;//cookie
-	size_t len; //数据长度
+	size_t contentLen;//Content Lenth
+	size_t len; //接收的数据长度
 	long long Range_frm, Range_to;
 }tw_reqHeads;
 
@@ -138,12 +141,15 @@ void tinyweb_stop(uv_loop_t* loop);
 //=================================================
 
 //制造头部 SetCookie 字段和值
-//set_cookie: 缓存区(至少 110+strlen(domain)=strlen(path) )，外部传入
+//set_cookie: 缓存区(至少 42+strlen(domain)=strlen(path) )
 //ckLen: set_cookie的长度
 //expires: 多少秒后过期
-//domain: Domain, 可以是 heads->host，外部传入
-//path: Path, 可以是 heads->path，外部传入
-void tw_make_cookie(char* set_cookie, int ckLen, int expires, char* domain, char* path);
+//domain: Domain, 域名或IP地址
+//path: Path, 可以是 heads->path
+void tw_make_setcookie(char* set_cookie, int ckLen, const char* key, const char* val, int expires, char* domain, char* path);
+
+//制造头部 delete cookie
+void tw_make_delcookie(char* del_cookie, int ckLen, char* key);
 
 //返回格式华的HTTP响应内容 (需要free返回数据)
 //status：http状态,如:"200 OK"

@@ -29,7 +29,9 @@ auth lzpong 2016/11/24
 10.支持x64,支持超过2G大文件
 11.支持cookie/setcookie
 12.支持添加自定义头部信息
-==============stable
+13.支持POST较大的数据(支持分包发送的http Post内容)
+==============stable,future
+14.支持分包发送的http头部(http get)
 
 ```
 # 使用示例(Use age)

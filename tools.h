@@ -23,8 +23,8 @@ extern "C" {
 
 	typedef struct membuf_t {
 		uchar* data;
-		size_t  size;
-		size_t  buffer_size;
+		size_t  size;//数据长度
+		size_t  buffer_size;//总容量大小
 	} membuf_t;
 	//初始化
 	void membuf_init(membuf_t* buf, size_t initial_buffer_size);
@@ -149,10 +149,10 @@ extern "C" {
 	//初始化/重置结构体
 	void hash1_Reset(SHA1_CONTEXT* hd);
 
-	/* 使用长度为 inlen 的 inbuf 内容更新消息摘要。 */
+	//使用长度为 inlen 的 inbuf 内容更新消息摘要。
 	void hash1_Write(SHA1_CONTEXT* hd, uchar *inbuf, size_t inlen);
 
-	/*例程final终止计算并返回摘要。
+	/*结束计算并返回摘要。
 	*句柄准备用于新的循环，但是向句柄添加字节将破坏返回的缓冲区。
 	*返回：表示摘要的20个字节。
 	*/

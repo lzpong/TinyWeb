@@ -63,13 +63,24 @@ char on_request(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* h
 //	tw_send_200_OK(client, "text/html", tmp, -1, 0);
 //#endif // _MSC_VER
 //
-	printf("  sk:%lld Request:\n",pa->sk);
+	printf("  sk:%zd Request:\n",pa->sk);
 	printf("  Query: %s\n",heads->query);
 	printf("  Path: %s\n",heads->path);
 	printf("  Host: %s\n",heads->host);
 	printf("  Cookie: %s\n", heads->cookie);
 	printf("  Range: %lld-%lld\n",heads->Range_frm,heads->Range_to);
-	printf("  data(%lld): %s\n", heads->len,heads->data);
+	printf("  data(%zd): %s\n", heads->len,heads->data);
+	if (!heads->cookie)
+	{
+		char ck[512];
+		tw_make_setcookie(ck, 255,"TINYSSID","FDSAFdfafdsafds", 3600 * 8, NULL, heads->path);
+		tw_make_setcookie(ck + strlen(ck),255,"TINYSSID2","faFDSAF45dsafds",  0, heads->host, NULL);
+		sprintf(ck + strlen(ck), "WWW-Authenticate: Basic realm=\".\"\r\n");
+		size_t len;
+		char* rp = tw_format_http_respone(client, "401 Unauthorized", ck, "text/plan", "", -1, &len);
+		tw_send_data(client, rp, len, 0, 1);
+		return 1;
+	}
 	return 0;
 }
 
@@ -100,19 +111,19 @@ char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* 
 			l = len;
 			gb = U2GB((wchar_t *)uc, &l);
 			len = l;
-			printf("-------------------------------------------ws1:%lld  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, len, gb);
+			printf("-------------------------------------------ws1:%zd  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, len, gb);
 			free(uc);
 			free(gb);
 		}
 		else
 			//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
 #endif // _MSC_VER
-			printf("-------------------------------------------ws:%lld  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, buf->size, buf->data);
+			printf("-------------------------------------------ws:%zd  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, buf->size, buf->data);
 		ulong len = buf->size;
 		char* p = WebSocketMakeFrame(buf->data, &len, 1);//文本帧
 		tw_send_data(client, p, len, 0, 1);
 	} else { //Socket
-		printf("-------------------------------------------sk:%lld  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, buf->size, buf->data);
+		printf("-------------------------------------------sk:%zd  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, buf->size, buf->data);
 		tw_send_data(client, buf->data, buf->size, 1, 0);
 	}
 	return 1;

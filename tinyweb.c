@@ -30,6 +30,8 @@ typedef struct tw_client {
 	tw_peerAddr pa;//客户端连接的地址
 	tw_file_t ft;//发往客户端的文件,断点续传记录
 	WebSocketHandle hd;
+	tw_reqHeads heads;//Http 头部(如果是http)
+	membuf_t buf;//http 分包接收的缓存
 }tw_client;
 //=================================================
 
@@ -46,6 +48,9 @@ static void after_uv_close_client(uv_handle_t* client) {
 	//如果是WebSocket
 	if (clidata->pa.flag & 0x2)
 		membuf_uninit(&clidata->hd.buf);
+	//http 分包接收的缓存
+	if (clidata->buf.data)
+		membuf_uninit(&clidata->buf);
 	//关闭连接回调
 	if (tw_conf->on_close)
 		tw_conf->on_close(tw_conf->data, client, &clidata->pa);
@@ -69,7 +74,7 @@ static void after_uv_write(uv_write_t* w, int err) {
 		tw_http_send_file(w->handle, NULL, NULL, NULL, NULL);
 	else if (!(clidata->pa.flag & 0x1)){
 		if (w->handle->flags & 0x01)
-			printf("after_uv_write sk:%lld　error: handle Has been closed\n", clidata->pa.sk);
+			printf("after_uv_write sk:%zd　error: handle Has been closed\n", clidata->pa.sk);
 		else
 			uv_close((uv_handle_t*)w->handle, after_uv_close_client);
 	}
@@ -101,18 +106,32 @@ void tw_send_data(uv_stream_t* client, const void* data, size_t len, char need_c
 }
 
 //制造头部 SetCookie 字段和值
-//setCookie: 缓存区(至少 110+strlen(domain)=strlen(path) )，外部传入
-//ckLen: set_cookie的长度
+//cookie: 缓存区(至少 42+strlen(key)+strlen(val)+strlen(domain)+strlen(path) )
+//ckLen: cookie的长度
 //expires: 多少秒后过期
-//domain: Domain, 可以是 heads->host，外部传入
-//path: Path, 可以是 heads->path，外部传入
-void tw_make_cookie(char* set_cookie,int ckLen,int expires,char* domain,char* path) {
-	char val[30];
-	char szDate[30];
-	getGmtTime(szDate,30,expires);
-	path == NULL ? path = "/" : 0;
-	snprintf(val, 100, "Tiny%lld", str2stmp(NULL));
-	snprintf(set_cookie, ckLen, "SetCookie: TINY_SSID=%s; Expires=%s; Path=%s; Domain=%s;\r\n", val, szDate, path, domain);
+//domain: Domain, 域名或IP地址,或NULL
+//path: Path, 可以是 heads->path,或NULL
+void tw_make_setcookie(char* set_cookie,int ckLen,const char* key,const char* val,int expires,char* domain,char* path) {
+	int rlen,len=0;
+	rlen=snprintf(set_cookie, ckLen, "Set-Cookie: %s=%s", key, val);
+	if (rlen > 0) len = rlen,rlen=0;
+	if (expires > 0)
+		rlen = snprintf(set_cookie + len, ckLen - len, "; Max-Age=%d", expires);
+	if (rlen > 0) len += rlen,rlen=0;
+	if (domain)
+		rlen = snprintf(set_cookie + len, ckLen - len, "; Domain=%s", domain);
+	if (rlen > 0) len += rlen, rlen = 0;
+	if (path)
+		rlen = snprintf(set_cookie + len, ckLen - len, "; Path=%s", path);
+	if (rlen > 0) len += rlen, rlen = 0;
+	set_cookie[len]='\r';
+	set_cookie[len+1]='\n';
+	set_cookie[len+2]=0;
+}
+//制造头部 delete cookie
+void tw_make_delcookie(char* del_cookie, int ckLen, char* key)
+{
+	snprintf(del_cookie, ckLen, "Delete-Cookie: %s\r\n", key);
 }
 
 //发送'200 OK' 响应; 不会释放(free)传入的数据(u8data)
@@ -120,7 +139,7 @@ void tw_make_cookie(char* set_cookie,int ckLen,int expires,char* domain,char* pa
 //u8data：utf-8编码的数据
 //content_length：数据长度，为-1时自动计算(strlen)
 //respone_size：获取响应最终发送的数据长度，为0表示放不需要取此长度
-void tw_send_200_OK(uv_stream_t* client, const char* content_type, const char* ext_heads, const void* u8data, size_t content_length, size_t* respone_size) {
+void tw_send_200_OK(uv_stream_t* client, const char* ext_heads, const char* content_type, const void* u8data, size_t content_length, size_t* respone_size) {
 	size_t repSize;
 	const char *type = strchr(content_type, '/');
 	//有'.'    没有'/'   至少有两个'/'    '/'是在开头    '/'是在末尾
@@ -167,7 +186,7 @@ char* tw_format_http_respone(uv_stream_t* client, const char* status, const char
 		content_length = content ? strlen(content) : 0;
 	totalsize = strlen(status) + strlen(ext_heads) + strlen(content_type) + content_length + 158;
 	respone = (char*)malloc(totalsize + 1);
-	header_size = snprintf(respone, totalsize, "HTTP/1.1 %s\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s; charset=%s\r\nContent-Length:%zd%s\r\n\r\n"
+	header_size = snprintf(respone, totalsize, "HTTP/1.1 %s\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s; charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
 		, status, szDate, content_type, tw_conf->charset, content_length, ext_heads);
 	assert(header_size > 0);
 	if (content_length)
@@ -197,7 +216,7 @@ void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 301 Moved Permanently\r\nDate: %s\r\n"
 		"Server: TinyWeb\r\nLocation: http://%s%s/%s%s\r\nConnection: close\r\n"
-		"Content-Type:text/html;charset=%s\r\nContent-Length:%zd%s\r\n\r\n"
+		"Content-Type:text/html;charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
 		"<h1>Moved Permanently</h1><p>The document has moved <a href=\"%s%s%s\">here</a>.</p>"
 		, szDate
 		, heads->host, heads->path, (heads->query?"?":""), (heads->query?heads->query:"")
@@ -246,10 +265,10 @@ void tw_http_send_file(uv_stream_t* client, tw_reqHeads* heads, const char* ext_
 			respone = (char*)malloc(300 + 1);
 			int respone_size;
 			if (heads->Range_frm == 0) //200 OK
-				respone_size = snprintf(respone, 300, "HTTP/1.1 200 OK\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Length:%lld%s\r\n\r\n"
+				respone_size = snprintf(respone, 300, "HTTP/1.1 200 OK\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Length:%lld\r\n%s\r\n"
 					, szDate, content_type, tw_conf->charset, filet->fsize,ext_heads);
 			else //206 Partial Content
-				respone_size = snprintf(respone, 300, "HTTP/1.1 206 Partial Content\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Range: %lld-%lld/%lld\r\nContent-Length:%lld%s\r\n\r\n"
+				respone_size = snprintf(respone, 300, "HTTP/1.1 206 Partial Content\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Range: %lld-%lld/%lld\r\nContent-Length:%lld\r\n%s\r\n"
 					, szDate, content_type, tw_conf->charset, heads->Range_frm, heads->Range_to, filet->fsize, filet->lsize,ext_heads);
 			tw_send_data(client, respone, respone_size, 0, 1);
 		}
@@ -439,13 +458,14 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 }
 
 //获取http头信息,返回指向 Sec-WebSocket-Key 的指针
-static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
+static char* tw_get_http_heads(const uv_buf_t* buf, int len, tw_reqHeads* heads) {
 	char *key=NULL, *start, *head, *p;
 	char delims[] = "\r\n";
 	char* data = strstr(buf->base, "\r\n\r\n");
 	if (data) {
 		*data = 0;
 		heads->data = data += 4;
+		heads->len = len - (data-buf->base);
 		//是http get/post协议
 		if (buf->base[0] == 'G' && buf->base[1] == 'E' && buf->base[2] == 'T' && buf->base[3] == ' ') {
 			heads->method = 1;//GET
@@ -558,6 +578,11 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 					else //没有 sizeTo
 						heads->Range_frm = strtol(start, NULL, 10);
 				}
+				//Content-Length: 3543
+				else if (start = strstr(head, "Content-Length: "))
+				{
+					heads->contentLen = atoi(start + 16);
+				}
 				//Cookie: xxxxx
 				else if (start = strstr(head, "Cookie: "))
 				{
@@ -566,11 +591,8 @@ static char* tw_get_http_heads(const uv_buf_t* buf, tw_reqHeads* heads) {
 				//下一行 头部
 				head = strtok(NULL, delims);
 			}
-
-			//data length
-			heads->len = strlen(data);
-			if (heads->len < 1)
-				heads->data = NULL;
+			if (heads->contentLen < 1)
+				heads->data = NULL,heads->len=0;
 		}
 	}
 	return key;
@@ -642,7 +664,6 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 		//WebSocket
 		if (clidata->pa.flag & 0x2) //WebSocket
 			on_read_websocket(client, buf->base, nread);
-
 		//long-link
 		else if (clidata->pa.flag & 0x1) { //SOCKET //long-link
 			//接收数据回调
@@ -653,22 +674,41 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 				tw_conf->on_data(tw_conf->data, client, &clidata->pa, &mbuf);
 			}
 		}
-		//http 或 未知
+		//http post继续接收 未收完的数据
+		else if (clidata->heads.method==2) {
+			if (nread) {
+				membuf_append_data(&clidata->buf, buf->base, nread);
+				clidata->heads.len += nread;
+			}
+			if (clidata->heads.len >= clidata->heads.contentLen) {
+				//所有请求全部回调,返回非0表示已处理
+				if (tw_conf->on_request == 0 || 0 == tw_conf->on_request(tw_conf->data, client, &clidata->pa, &clidata->heads))
+					tw_request(client, &clidata->heads);
+			}
+		}
+		//未知
 		else { //http 或 未知
 			char* p, *p2;
-			tw_reqHeads heads;
-			memset(&heads, 0, sizeof(tw_reqHeads));
-			p = tw_get_http_heads(buf, &heads);//get Sec-WebSocket-Key ?
+			//tw_reqHeads heads;
+			//memset(&heads, 0, sizeof(tw_reqHeads));
+			p = tw_get_http_heads(buf,nread, &clidata->heads);//get Sec-WebSocket-Key ?
 			if (p) { //WebSocket 握手
 				clidata->pa.flag |= 3;//long-link & WebSocket
 				p2 = WebSocketHandShak(p);
 				tw_send_data(client, p2, -1, 1, 0);
 				free(p2);
 			}
-			else if (heads.method) { //HTTP
-				//所有请求全部回调,返回非0表示已处理
-				if (tw_conf->on_request == 0 || 0 == tw_conf->on_request(tw_conf->data, client, &clidata->pa, &heads))
-					tw_request(client, &heads);
+			else if (clidata->heads.method) { //HTTP
+				if (clidata->heads.len >= clidata->heads.contentLen) {
+					//所有请求全部回调,返回非0表示已处理
+					if (tw_conf->on_request == 0 || 0 == tw_conf->on_request(tw_conf->data, client, &clidata->pa, &clidata->heads))
+						tw_request(client, &clidata->heads);
+				}
+				else{
+					membuf_init(&clidata->buf,128);
+					if(clidata->heads.len)
+						membuf_append_data(&clidata->buf, clidata->heads.data, clidata->heads.len);
+				}
 			}
 			else { //SOCKET
 				clidata->pa.flag |= 1;//long-link
