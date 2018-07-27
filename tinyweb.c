@@ -322,8 +322,8 @@ const char* tw_get_content_type(const char* fileExt) {
 	else if (strcmpi(fileExt, "json") == 0)
 		return "application/json";
 	else if (strcmpi(fileExt, "log") == 0 || strcmpi(fileExt, "txt") == 0 || strcmpi(fileExt, "ini") == 0
-		  || strcmpi(fileExt, "config") == 0  || strcmpi(fileExt, "conf") == 0 || strcmpi(fileExt, "cfg") == 0
-		  || strcmpi(fileExt, "sh") == 0 || strcmpi(fileExt, "bat") == 0 )
+		|| strcmpi(fileExt, "config") == 0 || strcmpi(fileExt, "conf") == 0 || strcmpi(fileExt, "cfg") == 0
+		|| strcmpi(fileExt, "sh") == 0 || strcmpi(fileExt, "bat") == 0)
 		return "text/plain";
 	else if (strcmpi(fileExt, "jpg") == 0 || strcmpi(fileExt, "jpeg") == 0)
 		return "image/jpeg";
@@ -337,14 +337,30 @@ const char* tw_get_content_type(const char* fileExt) {
 		return "application/xml";
 	else if (strcmpi(fileExt, "xhtml") == 0)
 		return "application/xhtml+xml";
+	else if (strcmpi(fileExt, "swf") == 0)
+		return "application/x-shockwave-flash";
+	else if (strcmpi(fileExt, "svg") == 0)
+		return "image/svg-xml";
 	else if (strcmpi(fileExt, "wav") == 0)
 		return "audio/wav";
+	else if (strcmpi(fileExt, "mid") == 0 || strcmpi(fileExt, "midi") == 0)
+		return "audio/midi";
 	else if (strcmpi(fileExt, "wma") == 0)
 		return "audio/x-ms-wma";
 	else if (strcmpi(fileExt, "mp3") == 0)
 		return "audio/mp3";
+	else if (strcmpi(fileExt, "3gp") == 0)
+		return "video/3gpp";
+	else if (strcmpi(fileExt, "avi") == 0)
+		return "video/x-msvideo";
+	else if (strcmpi(fileExt, "mkv") == 0)
+		return "video/x-matroska";
 	else if (strcmpi(fileExt, "mp4") == 0)
 		return "video/mp4";
+	else if (strcmpi(fileExt, "rmvb") == 0)
+		return "video/vnd.rn-realvideo";
+	else if (strcmpi(fileExt, "flv") == 0)
+		return "flv-application/octet-stream";// "video/x-flv";
 	else if (strcmpi(fileExt, "apk") == 0)
 		return "application/vnd.android.package-archive";
 	else
@@ -397,8 +413,7 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 		while (p)
 		{
 			snprintf(tmp, 259, "%s/%s", fullpath, p);
-			if (isFile(tmp))
-			{
+			if (isFile(tmp)) {
 				tw_http_send_file(client, heads, NULL, "text/html", tmp);
 				break;
 			}
@@ -409,14 +424,30 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 		//没用默认主页
 		if (!tmp[0])
 		{
+			char* p2=NULL;
+			uint len;
 			membuf_t buf;
-			membuf_init(&buf, 1024 * 3);
+			membuf_init(&buf, 1024 * 2);
 			char *body = "Welcome to TinyWeb.<br>Directory access forbidden.";
 			if (tw_conf->dirlist) {
-				char* head1 = "<!DOCTYPE html><html><head><title>Index of ";
-				char* head2 = "</title><meta name=\"renderer\" content=\"webkit\">\r\n"
-					"</head><body><h1>Index of ";
-				char* head3="</h1>\r\n"
+				membuf_append(&buf, "<!DOCTYPE html><html><head><title>Index of ");//+path
+#ifdef _MSC_VER
+				if (strnicmp(tw_conf->charset, "utf",3) == 0) {//utf-8
+					len = strlen(heads->path);
+					p2 = GB2U8(heads->path, &len);
+					membuf_append(&buf, p2);
+				} else
+#endif // _MSC_VER
+					membuf_append(&buf, heads->path);
+				membuf_append_format(&buf, "</title><meta name=\"renderer\" content=\"webkit\"><meta charset=\"%\">\r\n", tw_conf->charset);
+				membuf_append(&buf, "</head><body><h1>Index of ");//+path
+				if (p2) {
+					membuf_append(&buf, p2);
+					free(p2);
+				} else {
+					membuf_append(&buf, heads->path);
+				}
+				membuf_append(&buf, "</h1>\r\n"
 					"<table>\r\n"
 					"<thead><tr><th><a href=\"javascript:fssort('type')\">@</a></th><th><a href=\"javascript:fssort('name')\">Name</a></th><th><a href=\"javascript:fssort('size')\">Size</a></th><th><a href=\"javascript:fssort('mtime')\">Last modified</a></th></tr>"
 					"<tr><th colspan=\"4\"><hr style=\"margin:1px;\"></th></tr></thead>\r\n"
@@ -424,24 +455,25 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 					"<tfoot><tr><th colspan=\"4\"><hr></th></tr></tfoot>"
 					"</table>"
 					"<address>TinyWeb Server</address>"
-					"</body></html>\r\n<script type=\"text/javascript\">\r\nvar files=";
-				char* tail = "; \r\nvar html = \"\", p=files.path[files.path.length-1];\n"
+					"</body></html>\r\n<script type=\"text/javascript\">\r\nvar files=");//+files
+				body = listDir(fullpath, heads->path);
+#ifdef _MSC_VER
+				if (strnicmp(tw_conf->charset, "utf", 3) == 0) {//utf-8
+					len = strlen(body);
+					p2 = GB2U8(body, &len);
+					free(body);
+					body = p2;
+				}
+#endif // _MSC_VER
+				membuf_append(&buf, body);
+				free(body);
+				membuf_append(&buf, "; \r\nvar html = \"\", p=files.path[files.path.length-1];\n"
 					"function fsshow(){var html='';for (var r in files.files){r=files.files[r];html+='<tr><td>'+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+'</td><td>'+r.size+'</td><td>'+r.mtime+'</td></tr>';}document.querySelector('tbody').innerHTML = html;}\n"
 					"if(p!='/'){files.path+='/';}\n"
 					"files.files.sort(function(a,b){var n=a.type.localeCompare(b.type);if(n)return n;else return a.name.localeCompare(b.name);});\n"
 					"fsshow();\n"
 					"function fssort(n){files.files.sort(function(a,b){if(typeof a[n]=='number')return a[n]-b[n];return a[n].localeCompare(b[n])});fsshow();}\n"
-					"</script>";
-				body = listDir(fullpath, heads->path);
-				if (strstr(tw_conf->charset, "utf"))
-				{//下需要转换编码
-					size_t len = strlen(body);
-					char* p2 = GB2U8(body, &(unsigned int)len);
-					free(body);
-					body = p2;
-				}
-				membuf_append_format(&buf, "%s%s%s%s%s%s%s", head1, heads->path, head2, heads->path, head3, body, tail);
-				free(body);
+					"</script>");
 			}
 			else
 				membuf_append_data(&buf, body, strlen(body));
@@ -826,13 +858,13 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 //TinyWeb 线程开始运行
 static void tw_run(uv_loop_t* loop) {
 	tw_config* tw_conf = (tw_config*)loop->data;
-	printf("TinyWeb v1.2.0 is started, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
+	printf("TinyWeb v1.2.2 is started, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
 	uv_run(loop, UV_RUN_DEFAULT);
 	uv_stop(loop);
 	if (!uv_loop_close(loop) && loop != uv_default_loop()) {
 		uv_loop_delete(loop);
 	}
-	printf("TinyWeb v1.2.0 is stopped, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
+	printf("TinyWeb v1.2.2 is stopped, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
 	free(tw_conf->doc_dir);
 	free(tw_conf->doc_index);
 	free(tw_conf);
@@ -858,7 +890,7 @@ int tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 	else
 		tw_conf->doc_dir = strdup("./");
 
-	printf("WebRoot Dir:%s  port:%d\n", tw_conf->doc_dir,tw_conf->port);
+	printf("WebRoot port:%d  Dir:%s\n",tw_conf->port, tw_conf->doc_dir);
 	//设置默认主页（分号间隔）
 	if (conf->doc_index && strcmpi(conf->doc_index, "") != 0)
 		tw_conf->doc_index = strdup(conf->doc_index);

@@ -146,59 +146,95 @@ char on_connect(void* data, uv_stream_t* client, tw_peerAddr* pa)
 	printf("connected: sk=%zd [%s:%d]  from:%s:%d    cli:%d\n",pa->sk,pa->ip,pa->port,pa->fip,pa->fport, client->loop->active_tcp_streams);
 	return 0;
 }
+const char* help = 
+"TinyWeb v1.2.2 创建迷你Web(静态)\n"
+"\n"
+"TinyWeb  [[dir|port] | [-d dir] [-d port]]\n"
+"\n"
+"Use Like:\n"
+"TinyWeb           使用当前目录,使用默认80端口\n"
+"TinyWeb  -p por   使用当前目录,使用[port]端口\n"
+"TinyWeb  [port]   使用当前目录,使用[port]端口\n"
+"TinyWeb  -d dir   使用[dir]目录,使用默认80端口\n"
+"TinyWeb  [dir]    使用[dir]目录,使用默认80端口\n"
+"TinyWeb  -d dir -p port\n"
+"                  使用[dir]目录,使用[port]端口\n"
+"TinyWeb  -d dir1 -p port1 -d dir2 -p port2 [-d dir -p port]\n"
+"                  使用指定的目录和端口,创建多个Web\n";
+
+void startWeb(char* dir, int port)
+{
+	uv_loop_t* loop = uv_loop_new();
+	//配置TinyWeb
+	tw_config conf;
+	memset(&conf, 0, sizeof(conf));
+	conf.dirlist = 1;//目录列表
+					 //conf.ip = NULL;// "127.0.0.1";
+	conf.port = port;
+	//conf.doc_dir = NULL;//默认程序文件所在目录
+	conf.doc_dir = dir;
+	conf.doc_index = NULL;//默认主页
+	//
+	conf.on_request = on_request;
+	conf.on_data = on_socket_data;
+	conf.on_close = on_close;
+	conf.on_connect = on_connect;
+	conf.on_error = on_error;
+	//启动TinyWeb
+	tinyweb_start(loop, &conf);
+}
 
 int main(int argc, char** argv)
 {
-	int i;
-	char cmd[1024];
-	for (i = 0; i < argc; i++)
-		printf("arg[%d]:%s\n",i,argv[i]);
-
-	//http-1
-	{
-		uv_loop_t* loop = uv_loop_new();
-		//配置TinyWeb
-		tw_config conf;
-		memset(&conf, 0, sizeof(conf));
-		conf.dirlist = 1;//目录列表
-		//conf.ip = NULL;// "127.0.0.1";
-		conf.port = 80;
-		//conf.doc_dir = NULL;//默认程序文件所在目录
-		if (argc > 1)
-			conf.doc_dir = argv[1];
-		conf.doc_index = NULL;//默认主页
-		//
-		conf.on_request = on_request;
-		conf.on_data = on_socket_data;
-		conf.on_close = on_close;
-		conf.on_connect = on_connect;
-		conf.on_error = on_error;
-
-		//启动TinyWeb
-		tinyweb_start(loop, &conf);
+	int i, t, port=80;
+	char * dir=NULL;
+	char cmd[11];
+	if (argc < 5) { //cmd: "", "dir", "port", "-d dir", "-p port"
+		for (i = 1; i < argc;) {
+			if (strcmpi(argv[i], "-d") == 0) {
+				if (++i < argc)
+					dir = argv[i++];
+				else
+					return printf("need dir\n%s", help), 0;
+			}
+			if (i < argc && strcmpi(argv[i], "-p") == 0) {
+				if ( ++i < argc)
+					port = atoi(argv[i++]);
+				else
+					return printf("need port\n%s", help), 0;
+			}
+			if (i < argc) {
+				t = atoi(argv[i]);
+				if (t)
+					port=t,i++;
+				else
+					dir = argv[i++];
+			}
+		}
+		startWeb(dir, port);
 	}
-	//http-2
-	{
-		uv_loop_t* loop = uv_loop_new();
-		//配置TinyWeb
-		tw_config conf;
-		memset(&conf, 0, sizeof(conf));
-		conf.dirlist = 1;//目录列表
-		//conf.ip = NULL;// "127.0.0.1";
-		conf.port = 81;
-		//conf.doc_dir = NULL;//默认程序文件所在目录
-		//if (argc > 1)
-		//	conf.doc_dir = "";
-		conf.doc_index = NULL;//默认主页
-		//
-		conf.on_request = on_request;
-		conf.on_data = on_socket_data;
-		conf.on_close = on_close;
-		conf.on_connect = on_connect;
-		conf.on_error = on_error;
-
-		//启动TinyWeb
-		tinyweb_start(loop, &conf);
+	else {
+		for (i = 1; i < argc;)
+		{
+			port = 0;
+			dir = NULL;
+			if (strcmpi(argv[i], "-d") == 0 && ++i < argc)
+				dir = argv[i++];
+			else if (strcmpi(argv[i], "-p") == 0 && ++i < argc)
+				port = atoi(argv[i++]);
+			else
+				return printf(help), 0;
+			if (strcmpi(argv[i], "-d") == 0 && ++i < argc)
+				dir = argv[i++];
+			else if (strcmpi(argv[i], "-p") == 0 && ++i < argc)
+				port = atoi(argv[i++]);
+			else
+				return printf(help), 0;
+			if(port && dir)
+				startWeb(dir, port);
+			else
+				return printf(help), 0;
+		}
 	}
 	//
 	while (1) {

@@ -109,6 +109,15 @@ void membuf_trunc(membuf_t* buf) {
 		buf->buffer_size = buf->size + 4;
 	}
 }
+//添加C-style字符串
+size_t membuf_append(membuf_t* buf, const char* str) {
+	if (str == NULL) return 0;
+	size_t size = strlen(str);
+	membuf_reserve(buf, size);
+	memmove((buf->data + buf->size), str, size);
+	buf->size += size;
+	return size;
+}
 //添加数据
 size_t membuf_append_data(membuf_t* buf, const void* data, size_t size) {
 	assert(data && size > 0);

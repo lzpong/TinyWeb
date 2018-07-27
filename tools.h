@@ -30,6 +30,8 @@ extern "C" {
 	void membuf_init(membuf_t* buf, size_t initial_buffer_size);
 	//释放buffer
 	void membuf_uninit(membuf_t* buf);
+	//添加C-style字符串
+	size_t membuf_append(membuf_t* buf, const char* str);
 	//添加数据
 	size_t membuf_append_data(membuf_t* buf, const void* data, size_t size);
 	//按格式添加数据
