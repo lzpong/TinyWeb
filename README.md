@@ -1,4 +1,4 @@
-# TinyWeb v1.2.2
+# TinyWeb v1.3.0
 auth [lzpong](https://github.com/lzpong)
 一个基于libuv的小型Web服务器，可以接受Socket，WebSocket，http协议和设置回调函数。
 A tiny web server based on libuv, can accept Socket,WebSocket,or http protocol,and set callBack func's.
