@@ -77,11 +77,11 @@ typedef struct tw_peerAddr {
 
 typedef struct tw_reqHeads {
 	uchar method;//0:Socket 1:GET 2:POST
-	char* host; //IP:port
-	char* path; //路径
-	char* query;//参数
+	char host[260]; //IP:port, domain
+	char path[512]; //路径
+	char query[1500];//参数
 	char* data; //数据
-	char* cookie;//cookie
+	char cookie[260];//cookie
 	size_t contentLen;//Content Lenth
 	size_t len; //接收的数据长度
 	long long Range_frm, Range_to;
@@ -156,7 +156,7 @@ void tw_make_delcookie(char* del_cookie, int ckLen, char* key);
 //ext_heads：额外的头部字符串，如："head1: this-is-head1\r\nSetCookie: TINY_SSID=Tiny1531896250879; Expires=...\r\n"
 //content_type：文件类型，如："text/html" ；可以调用tw_get_content_type()得到
 //content：使用utf-8编码格式的数据，特别是html文件类型的响应
-//content_length：can be -1 if content is c_str (end with NULL)
+//content_length：0或-1自动计算 content 长度(c_str, end with NULL)
 //respone_size：if not NULL,可以获取发送的数据长度 the size of respone will be writen to request
 //returns malloc()ed c_str, need free() by caller
 char* tw_format_http_respone(uv_stream_t* client, const char* status, const char* ext_heads, const char* content_type, const char* content, size_t content_length, size_t* respone_size);
@@ -175,7 +175,7 @@ void tw_send_data(uv_stream_t* client, const void* data, size_t len, char need_c
 //发送'200 OK' 响应; 不会释放(free)传入的数据(u8data)
 //content_type：Content Type 文档类型
 //u8data：utf-8编码的数据
-//content_length：数据长度，为-1时自动计算(strlen)
+//content_length：数据长度，为0或-1时自动计算(strlen)(c_str, end with NULL)
 //respone_size：获取响应最终发送的数据长度，为0表示放不需要取此长度
 void tw_send_200_OK(uv_stream_t* client, const char* ext_heads, const char* content_type, const void* u8data, size_t content_length, size_t* respone_size);
 
@@ -183,8 +183,10 @@ void tw_send_200_OK(uv_stream_t* client, const char* ext_heads, const char* cont
 //file_path: 文件路径
 void tw_http_send_file(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads, const char* content_type, const char* file_path);
 
-//发送301响应,路径重定位
+//发送301响应,路径永久重定位
 void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads);
+//发送302响应,路径临时重定位
+void tw_302_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads);
 
 //关闭客户端连接
 void tw_close_client(uv_stream_t* client);

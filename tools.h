@@ -21,8 +21,9 @@ extern "C" {
 
 	//-----------------------------------------------------------------------------------membuf c-str  win/unix
 
+	//内存数据缓存
 	typedef struct membuf_t {
-		uchar* data;
+		uchar* data;//数据
 		size_t  size;//数据长度
 		size_t  buffer_size;//总容量大小
 	} membuf_t;
@@ -106,27 +107,27 @@ extern "C" {
 	//-----------------------------------------------------------------------------------编码转换  win/unix
 
 #ifdef _MSC_VER
-	//GB2312 to unicode(need free return) 返回字串长度为：实际长度+2, 末尾\0\0占一字节（需要释放）
+	//GB2312 to unicode(need free return) 返回字串（需要释放）长度为：实际长度+2, 末尾\0\0占一字节
 	wchar_t* GB2U(char* pszGbs, uint* wLen);
-	//unicode to utf8(need free return) 返回字串长度为：实际长度+1, 末尾\0占一字节（需要释放）
+	//unicode to utf8(need free return) 返回字串（需要释放）长度为：实际长度+1, 末尾\0占一字节
 	char* U2U8(wchar_t* wszUnicode, uint* aLen);
-	//utf8 to unicode(need free return) 返回字串长度为：实际长度+2, 末尾\0\0占一字节（需要释放）
+	//utf8 to unicode(need free return) 返回字串（需要释放）长度为：实际长度+2, 末尾\0\0占一字节
 	wchar_t* U82U(char* szU8, uint* wLen);
-	//unicode to GB2312(need free return) 返回字串长度为：实际长度+1, 末尾\0占一字节（需要释放）
+	//unicode to GB2312(need free return) 返回字串（需要释放）长度为：实际长度+1, 末尾\0占一字节
 	char* U2GB(wchar_t* wszUnicode, uint* aLen);
 #else
-	//GB2312 to unicode(need free return) 返回字串长度为：实际长度+2,返回长度小于0为：失败, 末尾\0\0占一字节（需要释放）
+	//GB2312 to unicode(need free return) 返回字串（需要释放）长度为：实际长度+2,返回长度小于0为：失败, 末尾\0\0占一字节
 	char* GB2U(char* pszGbs, uint* aLen);
-	//unicode to utf8(need free return) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+	//unicode to utf8(need free return) 返回字串（需要释放）长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节
 	char* U2U8(char* wszUnicode, uint* aLen);
-	//utf8 to unicode(need free return) 返回字串长度为：实际长度+2,返回长度小于0为：失败, 末尾\0\0占一字节（需要释放）
+	//utf8 to unicode(need free return) 返回字串（需要释放）长度为：实际长度+2,返回长度小于0为：失败, 末尾\0\0占一字节
 	char* U82U(char* szU8, uint* aaLen);
-	//unicode to GB2312(need free return) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+	//unicode to GB2312(need free return) 返回字串（需要释放）长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节
 	char* U2GB(char* wszUnicode, uint* aLen);
 #endif
-	//GB2312 to utf8(need free return) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+	//GB2312 to utf8(need free return) 返回字串（需要释放）长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节
 	char* GB2U8(char* pszGbs, uint* aLen);
-	//utf8 to GB2312(need free return) 返回字串长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节（需要释放）
+	//utf8 to GB2312(need free return) 返回字串（需要释放）长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节
 	char* U82GB(char* szU8, uint* aLen);
 
 	char* enc_u82u(char* data, uint* len);
@@ -135,9 +136,9 @@ extern "C" {
 	//-----------------------------------------------------------------------------------Base64编码解码  win/unix
 
 	//Base64编码,需要释放返回值(need free return)
-	char* base64_Encode(uchar const* bytes_to_encode, uint in_len);
+	char* base64_Encode(const uchar* bytes_to_encode, uint in_len);
 	//Base64解码,需要释放返回值(need free return)
-	char* base64_Decode(char* const encoded_string);
+	char* base64_Decode(const char* encoded_string);
 
 	//-----------------------------------------------------------------------------------SHA1计算摘要  win/unix
 

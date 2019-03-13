@@ -769,7 +769,7 @@ char* U82U(char* szU8, uint* aLen)
 	else *aLen = len + 1;
 	return outbuf;
 }
-//unicode to GB2312(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
+//unicode to GB2312(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
 char* U2GB(char* wszUnicode, uint* aLen)
 {
 	size_t len = *aLen;
@@ -780,7 +780,7 @@ char* U2GB(char* wszUnicode, uint* aLen)
 	return outbuf;
 }
 
-//GB2312 to utf8(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
+//GB2312 to utf8(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
 char* GB2U8(char* pszGbs, uint* aLen)
 {
 	size_t len = *aLen * 3;
@@ -790,7 +790,7 @@ char* GB2U8(char* pszGbs, uint* aLen)
 	else *aLen = len + 1;
 	return outbuf;
 }
-//utf8 to GB2312(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
+//utf8 to GB2312(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
 char* U82GB(char* szU8, uint* aLen)
 {
 	size_t len = *aLen;
@@ -913,7 +913,7 @@ inline char is_base64(uchar c) {
 }
 
 //Base64编码,需要释放返回值(need free return)
-char* base64_Encode(uchar const* bytes_to_encode, uint in_len)
+char* base64_Encode(const uchar* bytes_to_encode, uint in_len)
 {
 	membuf_t ret;
 	int i = 0, j = 0;
@@ -956,7 +956,7 @@ char* base64_Encode(uchar const* bytes_to_encode, uint in_len)
 }
 
 //Base64解码,需要释放返回值(need free return)
-char* base64_Decode(char* const encoded_string)
+char* base64_Decode(const char* encoded_string)
 {
 	size_t in_len = strlen(encoded_string);
 	int i = 0;
