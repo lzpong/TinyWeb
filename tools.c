@@ -11,6 +11,7 @@
 #endif // !WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <time.h>
+#include <io.h>
 
 //#  if defined(WIN32)
 //#  define snprintf _snprintf
@@ -31,7 +32,6 @@
 #include "tools.h"
 
 //#include "membuf.h"
-#include <io.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
@@ -624,7 +624,7 @@ int enc_utf8_to_unicode_one(const uchar* pInput, uchar *Unic)
 	return utfbytes;
 }
 
-char* enc_u2u8(char* data, uint* len) {
+char* enc_u2u8(const char* data, uint* len) {
 	size_t t, i;
 	membuf_t buf;
 	membuf_init(&buf, 128);
@@ -641,14 +641,14 @@ char* enc_u2u8(char* data, uint* len) {
 	return (char*)buf.data;
 }
 
-char* enc_u82u(char* data, uint* len) {
+char* enc_u82u(const char* data, uint* len) {
 	size_t t, i;
 	membuf_t buf;
 	membuf_init(&buf, 128);
 	for (i = 0; i < *len;) {
 		if (buf.buffer_size - buf.size < 4)
 			membuf_reserve(&buf, 4);
-		t = enc_utf8_to_unicode_one((uchar*)(data + i), (uchar*)(buf.data + buf.size));
+		t = enc_utf8_to_unicode_one((const uchar*)(data + i), (uchar*)(buf.data + buf.size));
 		if (t == 0) break;
 		buf.size += 2;
 		i += t;
@@ -660,7 +660,7 @@ char* enc_u82u(char* data, uint* len) {
 
 #ifdef _MSC_VER
 //GB2312 to unicode
-wchar_t* GB2U(char* pszGbs, uint* wLen)
+wchar_t* GB2U(const char* pszGbs, uint* wLen)
 {
 	*wLen = MultiByteToWideChar(CP_ACP, 0, pszGbs, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*wLen * sizeof(wchar_t));
@@ -668,7 +668,7 @@ wchar_t* GB2U(char* pszGbs, uint* wLen)
 	return wStr;
 }
 //unicode to utf8
-char* U2U8(wchar_t* wszUnicode, uint* aLen)
+char* U2U8(const wchar_t* wszUnicode, uint* aLen)
 {
 	*aLen = WideCharToMultiByte(CP_UTF8, 0, (PWSTR)wszUnicode, -1, NULL, 0, NULL, NULL);
 	char* szStr = (char*)malloc(*aLen * sizeof(char));
@@ -676,7 +676,7 @@ char* U2U8(wchar_t* wszUnicode, uint* aLen)
 	return szStr;
 }
 //utf8 to unicode
-wchar_t* U82U(char* szU8, uint* wLen)
+wchar_t* U82U(const char* szU8, uint* wLen)
 {
 	*wLen = MultiByteToWideChar(CP_UTF8, 0, szU8, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*wLen * sizeof(wchar_t));
@@ -684,7 +684,7 @@ wchar_t* U82U(char* szU8, uint* wLen)
 	return wStr;
 }
 //unicode to GB2312
-char* U2GB(wchar_t* wszUnicode, uint* aLen)
+char* U2GB(const wchar_t* wszUnicode, uint* aLen)
 {
 	*aLen = WideCharToMultiByte(CP_ACP, 0, wszUnicode, -1, NULL, 0, NULL, NULL);
 	char* szStr = (char*)malloc(*aLen * sizeof(char));
@@ -692,7 +692,7 @@ char* U2GB(wchar_t* wszUnicode, uint* aLen)
 	return szStr;
 }
 //GB2312 to utf8
-char* GB2U8(char* pszGbs, uint* aLen)
+char* GB2U8(const char* pszGbs, uint* aLen)
 {
 	*aLen = MultiByteToWideChar(CP_ACP, 0, pszGbs, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*aLen * sizeof(wchar_t));
@@ -705,7 +705,7 @@ char* GB2U8(char* pszGbs, uint* aLen)
 	return szStr;
 }
 //utf8 to GB2312
-char* U82GB(char* szU8, uint* aLen)
+char* U82GB(const char* szU8, uint* aLen)
 {
 	*aLen = MultiByteToWideChar(CP_UTF8, 0, szU8, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*aLen * sizeof(wchar_t));
@@ -740,7 +740,7 @@ size_t code_convert(char *from_charset, char *to_charset, char *inbuf, size_t in
 }
 
 //GB2312 to unicode(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* GB2U(char* pszGbs, uint* aLen)
+char* GB2U(const char* pszGbs, uint* aLen)
 {
 	size_t len = *aLen * 4;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
@@ -750,7 +750,7 @@ char* GB2U(char* pszGbs, uint* aLen)
 	return outbuf;
 }
 //unicode to utf8(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* U2U8(char* wszUnicode, uint* aLen)
+char* U2U8(const char* wszUnicode, uint* aLen)
 {
 	size_t len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
@@ -760,7 +760,7 @@ char* U2U8(char* wszUnicode, uint* aLen)
 	return outbuf;
 }
 //utf8 to unicode(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* U82U(char* szU8, uint* aLen)
+char* U82U(const char* szU8, uint* aLen)
 {
 	size_t len = *aLen * 2;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
@@ -770,7 +770,7 @@ char* U82U(char* szU8, uint* aLen)
 	return outbuf;
 }
 //unicode to GB2312(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
-char* U2GB(char* wszUnicode, uint* aLen)
+char* U2GB(const char* wszUnicode, uint* aLen)
 {
 	size_t len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
@@ -781,7 +781,7 @@ char* U2GB(char* wszUnicode, uint* aLen)
 }
 
 //GB2312 to utf8(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
-char* GB2U8(char* pszGbs, uint* aLen)
+char* GB2U8(const char* pszGbs, uint* aLen)
 {
 	size_t len = *aLen * 3;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
@@ -791,7 +791,7 @@ char* GB2U8(char* pszGbs, uint* aLen)
 	return outbuf;
 }
 //utf8 to GB2312(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
-char* U82GB(char* szU8, uint* aLen)
+char* U82GB(const char* szU8, uint* aLen)
 {
 	size_t len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
@@ -908,9 +908,7 @@ char* url_decode(char *url)
 char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 char base64_end = '=';
 
-inline char is_base64(uchar c) {
-	return (isalnum(c) || (c == '+') || (c == '/'));
-}
+#define is_base64(c)  (isalnum(c) || (c == '+') || (c == '/'))
 
 //Base64编码,需要释放返回值(need free return)
 char* base64_Encode(const uchar* bytes_to_encode, uint in_len)
@@ -1003,8 +1001,269 @@ char* base64_Decode(const char* encoded_string)
 
 #pragma endregion
 
-//-----------------------------------------------------------------------------------Hash1加密  win/linux
-#pragma region Hash1加密
+//-----------------------------------------------------------------------------------MD5计算摘要  win/unix
+#pragma region MD5计算摘要
+
+/*
+* The basic MD5 functions.
+*
+* F and G are optimized compared to their RFC 1321 definitions for
+* architectures that lack an AND-NOT instruction, just like in Colin Plumb's
+* implementation.
+*/
+#define MD5_F(x, y, z)			((z) ^ ((x) & ((y) ^ (z))))
+#define MD5_G(x, y, z)			((y) ^ ((z) & ((x) ^ (y))))
+#define MD5_H(x, y, z)			(((x) ^ (y)) ^ (z))
+#define MD5_H2(x, y, z)			((x) ^ ((y) ^ (z)))
+#define MD5_I(x, y, z)			((y) ^ ((x) | ~(z)))
+/*
+* The MD5 transformation for all four rounds.
+*/
+#define MD5_STEP(f, a, b, c, d, x, t, s) \
+	(a) += f((b), (c), (d)) + (x) + (t); \
+	(a) = (((a) << (s)) | (((a) & 0xffffffff) >> (32 - (s)))); \
+	(a) += (b)
+/*
+* SET reads 4 input bytes in little-endian byte order and stores them in a
+* properly aligned word in host byte order.
+*
+* The check for little-endian architectures that tolerate unaligned memory
+* accesses is just an optimization.  Nothing will break if it fails to detect
+* a suitable architecture.
+*
+* Unfortunately, this optimization may be a C strict aliasing rules violation
+* if the caller's data buffer has effective type that cannot be aliased by
+* uint.  In practice, this problem may occur if these MD5 routines are
+* inlined into a calling function, or with future and dangerously advanced
+* link-time optimizations.  For the time being, keeping these MD5 routines in
+* their own translation unit avoids the problem.
+*/
+#if defined(__i386__) || defined(__x86_64__) || defined(__vax__)
+#define MD5_SET(n) \
+	(*(uint *)&ptr[(n) * 4])
+#define MD5_GET(n) \
+	(ctx->block[(n)])/*SET(n)*/
+#else
+#define MD5_SET(n) \
+	(ctx->block[(n)] = \
+	(uint)ptr[(n) * 4] | \
+	((uint)ptr[(n) * 4 + 1] << 8) | \
+	((uint)ptr[(n) * 4 + 2] << 16) | \
+	((uint)ptr[(n) * 4 + 3] << 24))
+#define MD5_GET(n) \
+	(ctx->block[(n)])
+#endif
+
+#define MD5_OUT(dst, src) \
+	(dst)[0] = (uchar)(src); \
+	(dst)[1] = (uchar)((src) >> 8); \
+	(dst)[2] = (uchar)((src) >> 16); \
+	(dst)[3] = (uchar)((src) >> 24)
+
+// This processes one or more 64-byte data blocks, but does NOT update the bit counters.  There are no alignment requirements.
+static const uchar* md5_body(MD5_CONTEXT* ctx, const uchar* data, ulong size) {
+	const uchar *ptr;
+	uint a, b, c, d;
+	uint saved_a, saved_b, saved_c, saved_d;
+
+	ptr = data;
+
+	a = ctx->a;
+	b = ctx->b;
+	c = ctx->c;
+	d = ctx->d;
+
+	do {
+		saved_a = a;
+		saved_b = b;
+		saved_c = c;
+		saved_d = d;
+
+		/* Round 1 */
+		MD5_STEP(MD5_F, a, b, c, d, MD5_SET(0), 0xd76aa478, 7);
+		MD5_STEP(MD5_F, d, a, b, c, MD5_SET(1), 0xe8c7b756, 12);
+		MD5_STEP(MD5_F, c, d, a, b, MD5_SET(2), 0x242070db, 17);
+		MD5_STEP(MD5_F, b, c, d, a, MD5_SET(3), 0xc1bdceee, 22);
+		MD5_STEP(MD5_F, a, b, c, d, MD5_SET(4), 0xf57c0faf, 7);
+		MD5_STEP(MD5_F, d, a, b, c, MD5_SET(5), 0x4787c62a, 12);
+		MD5_STEP(MD5_F, c, d, a, b, MD5_SET(6), 0xa8304613, 17);
+		MD5_STEP(MD5_F, b, c, d, a, MD5_SET(7), 0xfd469501, 22);
+		MD5_STEP(MD5_F, a, b, c, d, MD5_SET(8), 0x698098d8, 7);
+		MD5_STEP(MD5_F, d, a, b, c, MD5_SET(9), 0x8b44f7af, 12);
+		MD5_STEP(MD5_F, c, d, a, b, MD5_SET(10), 0xffff5bb1, 17);
+		MD5_STEP(MD5_F, b, c, d, a, MD5_SET(11), 0x895cd7be, 22);
+		MD5_STEP(MD5_F, a, b, c, d, MD5_SET(12), 0x6b901122, 7);
+		MD5_STEP(MD5_F, d, a, b, c, MD5_SET(13), 0xfd987193, 12);
+		MD5_STEP(MD5_F, c, d, a, b, MD5_SET(14), 0xa679438e, 17);
+		MD5_STEP(MD5_F, b, c, d, a, MD5_SET(15), 0x49b40821, 22);
+
+		/* Round 2 */
+		MD5_STEP(MD5_G, a, b, c, d, MD5_GET(1), 0xf61e2562, 5);
+		MD5_STEP(MD5_G, d, a, b, c, MD5_GET(6), 0xc040b340, 9);
+		MD5_STEP(MD5_G, c, d, a, b, MD5_GET(11), 0x265e5a51, 14);
+		MD5_STEP(MD5_G, b, c, d, a, MD5_GET(0), 0xe9b6c7aa, 20);
+		MD5_STEP(MD5_G, a, b, c, d, MD5_GET(5), 0xd62f105d, 5);
+		MD5_STEP(MD5_G, d, a, b, c, MD5_GET(10), 0x02441453, 9);
+		MD5_STEP(MD5_G, c, d, a, b, MD5_GET(15), 0xd8a1e681, 14);
+		MD5_STEP(MD5_G, b, c, d, a, MD5_GET(4), 0xe7d3fbc8, 20);
+		MD5_STEP(MD5_G, a, b, c, d, MD5_GET(9), 0x21e1cde6, 5);
+		MD5_STEP(MD5_G, d, a, b, c, MD5_GET(14), 0xc33707d6, 9);
+		MD5_STEP(MD5_G, c, d, a, b, MD5_GET(3), 0xf4d50d87, 14);
+		MD5_STEP(MD5_G, b, c, d, a, MD5_GET(8), 0x455a14ed, 20);
+		MD5_STEP(MD5_G, a, b, c, d, MD5_GET(13), 0xa9e3e905, 5);
+		MD5_STEP(MD5_G, d, a, b, c, MD5_GET(2), 0xfcefa3f8, 9);
+		MD5_STEP(MD5_G, c, d, a, b, MD5_GET(7), 0x676f02d9, 14);
+		MD5_STEP(MD5_G, b, c, d, a, MD5_GET(12), 0x8d2a4c8a, 20);
+
+		/* Round 3 */
+		MD5_STEP(MD5_H, a, b, c, d, MD5_GET(5), 0xfffa3942, 4);
+		MD5_STEP(MD5_H2, d, a, b, c, MD5_GET(8), 0x8771f681, 11);
+		MD5_STEP(MD5_H, c, d, a, b, MD5_GET(11), 0x6d9d6122, 16);
+		MD5_STEP(MD5_H2, b, c, d, a, MD5_GET(14), 0xfde5380c, 23);
+		MD5_STEP(MD5_H, a, b, c, d, MD5_GET(1), 0xa4beea44, 4);
+		MD5_STEP(MD5_H2, d, a, b, c, MD5_GET(4), 0x4bdecfa9, 11);
+		MD5_STEP(MD5_H, c, d, a, b, MD5_GET(7), 0xf6bb4b60, 16);
+		MD5_STEP(MD5_H2, b, c, d, a, MD5_GET(10), 0xbebfbc70, 23);
+		MD5_STEP(MD5_H, a, b, c, d, MD5_GET(13), 0x289b7ec6, 4);
+		MD5_STEP(MD5_H2, d, a, b, c, MD5_GET(0), 0xeaa127fa, 11);
+		MD5_STEP(MD5_H, c, d, a, b, MD5_GET(3), 0xd4ef3085, 16);
+		MD5_STEP(MD5_H2, b, c, d, a, MD5_GET(6), 0x04881d05, 23);
+		MD5_STEP(MD5_H, a, b, c, d, MD5_GET(9), 0xd9d4d039, 4);
+		MD5_STEP(MD5_H2, d, a, b, c, MD5_GET(12), 0xe6db99e5, 11);
+		MD5_STEP(MD5_H, c, d, a, b, MD5_GET(15), 0x1fa27cf8, 16);
+		MD5_STEP(MD5_H2, b, c, d, a, MD5_GET(2), 0xc4ac5665, 23);
+
+		/* Round 4 */
+		MD5_STEP(MD5_I, a, b, c, d, MD5_GET(0), 0xf4292244, 6);
+		MD5_STEP(MD5_I, d, a, b, c, MD5_GET(7), 0x432aff97, 10);
+		MD5_STEP(MD5_I, c, d, a, b, MD5_GET(14), 0xab9423a7, 15);
+		MD5_STEP(MD5_I, b, c, d, a, MD5_GET(5), 0xfc93a039, 21);
+		MD5_STEP(MD5_I, a, b, c, d, MD5_GET(12), 0x655b59c3, 6);
+		MD5_STEP(MD5_I, d, a, b, c, MD5_GET(3), 0x8f0ccc92, 10);
+		MD5_STEP(MD5_I, c, d, a, b, MD5_GET(10), 0xffeff47d, 15);
+		MD5_STEP(MD5_I, b, c, d, a, MD5_GET(1), 0x85845dd1, 21);
+		MD5_STEP(MD5_I, a, b, c, d, MD5_GET(8), 0x6fa87e4f, 6);
+		MD5_STEP(MD5_I, d, a, b, c, MD5_GET(15), 0xfe2ce6e0, 10);
+		MD5_STEP(MD5_I, c, d, a, b, MD5_GET(6), 0xa3014314, 15);
+		MD5_STEP(MD5_I, b, c, d, a, MD5_GET(13), 0x4e0811a1, 21);
+		MD5_STEP(MD5_I, a, b, c, d, MD5_GET(4), 0xf7537e82, 6);
+		MD5_STEP(MD5_I, d, a, b, c, MD5_GET(11), 0xbd3af235, 10);
+		MD5_STEP(MD5_I, c, d, a, b, MD5_GET(2), 0x2ad7d2bb, 15);
+		MD5_STEP(MD5_I, b, c, d, a, MD5_GET(9), 0xeb86d391, 21);
+
+		a += saved_a;
+		b += saved_b;
+		c += saved_c;
+		d += saved_d;
+
+		ptr += 64;
+	} while (size -= 64);
+
+	ctx->a = a;
+	ctx->b = b;
+	ctx->c = c;
+	ctx->d = d;
+
+	return ptr;
+}
+//初始化 结构体
+void md5_init(MD5_CONTEXT *ctx) {
+	ctx->a = 0x67452301;
+	ctx->b = 0xefcdab89;
+	ctx->c = 0x98badcfe;
+	ctx->d = 0x10325476;
+
+	ctx->lo = 0;
+	ctx->hi = 0;
+}
+//使用长度为 len 的 data 内容更新消息摘要
+void md5_update(MD5_CONTEXT* ctx, const uchar* data, ulong len)
+{
+	uint saved_lo;
+	ulong used, available;
+
+	saved_lo = ctx->lo;
+	if ((ctx->lo = (saved_lo + len) & 0x1fffffff) < saved_lo)
+		ctx->hi++;
+	ctx->hi += len >> 29;
+
+	used = saved_lo & 0x3f;
+
+	if (used) {
+		available = 64 - used;
+
+		if (len < available) {
+			memcpy(&ctx->buffer[used], data, len);
+			return;
+		}
+
+		memcpy(&ctx->buffer[used], data, available);
+		data = (const uchar *)data + available;
+		len -= available;
+		md5_body(ctx, ctx->buffer, 64);
+	}
+
+	if (len >= 64) {
+		data = md5_body(ctx, data, len & ~(ulong)0x3f);
+		len &= 0x3f;
+	}
+
+	memcpy(ctx->buffer, data, len);
+}
+//结束计算并返回摘要, dst 长度不小于16字节
+void md5_final(MD5_CONTEXT* ctx, uchar* dst) {
+	unsigned long used, available;
+
+	used = ctx->lo & 0x3f;
+
+	ctx->buffer[used++] = 0x80;
+
+	available = 64 - used;
+
+	if (available < 8) {
+		memset(&ctx->buffer[used], 0, available);
+		md5_body(ctx, ctx->buffer, 64);
+		used = 0;
+		available = 64;
+	}
+
+	memset(&ctx->buffer[used], 0, available - 8);
+
+	ctx->lo <<= 3;
+	MD5_OUT(&ctx->buffer[56], ctx->lo);
+	MD5_OUT(&ctx->buffer[60], ctx->hi);
+
+	md5_body(ctx, ctx->buffer, 64);
+
+	MD5_OUT(&dst[0], ctx->a);
+	MD5_OUT(&dst[4], ctx->b);
+	MD5_OUT(&dst[8], ctx->c);
+	MD5_OUT(&dst[12], ctx->d);
+
+	memset(ctx, 0, sizeof(*ctx));
+}
+//直接计算src的摘要, dst 长度不小于16字节
+void md5_sum(uchar* dst, const uchar* src, size_t len)
+{
+	MD5_CONTEXT ctx;
+	md5_init(&ctx);
+	md5_update(&ctx, src, len);
+	md5_final(&ctx, dst);
+}
+//转换摘要为字符串, dst 长度16字节
+char* md5_print(const uchar* dst, char *buf) {
+	int i;
+	for (i = 0; i < 16; i++) {
+		sprintf(buf, "%02X", dst[i]);
+		buf += 2;
+	}
+	return buf;
+}
+
+#pragma endregion
+
+//-----------------------------------------------------------------------------------Hash1计算摘要  win/linux
+#pragma region Hash1计算摘要
 
 /****************
 * Rotate a 32 bit integer by n bytes
@@ -1274,6 +1533,19 @@ void hash1_Final(SHA1_CONTEXT* hd)
 //-----------------------------------------------------------------------------------WebSocket  win/linux
 #pragma region WebSocket Tool
 
+//初始化 WebSocketHandle
+void WebSocketHandleInit(WebSocketHandle* handle) {
+	handle->bFinal = 0;
+	handle->bFrame = 1;
+	handle->bHead = 0;
+	handle->bMask = 0;
+	handle->opCode = 0;
+	handle->extCode = 0;
+	handle->len = 0;
+	memset(handle->head, 0, sizeof(handle->head));
+	memset(handle->mask, 0, sizeof(handle->mask));
+}
+
 //WebSocket握手Key计算
 char* WebSocketHandShak(const char* key)
 {
@@ -1281,18 +1553,14 @@ char* WebSocketHandShak(const char* key)
 	char acc[165] = { 0 }, *p;
 	int len;
 	SHA1_CONTEXT hd;
-	//
-	//char* p=strstr(header, "Sec-WebSocket-Key:");//不需要查找 Upgrade:为 "websocket"
-	//if (p)
-	//{
-		//p += 19;
-		//char* p2=strst(p, "\r\n");
+
 	strncpy(akey, key, 99);
 	strncpy(akey + strlen(key), "258EAFA5-E914-47DA-95CA-C5AB0DC85B11", 36);
 
 	hash1_Reset(&hd);
 	hash1_Write(&hd, (uchar*)akey, strlen(akey));
 	hash1_Final(&hd);
+
 	p = base64_Encode(hd.buf, 20);
 	len = snprintf(acc, 164, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", p);
 	free(p);
@@ -1301,144 +1569,152 @@ char* WebSocketHandShak(const char* key)
 	memcpy(p, acc, len);
 	p[len] = 0;
 	return p;
-	//}
-	//else
-	//	return NULL;
 }
 
-inline void WebSocketDoMask(char* data, ulong len, char* mask)
-{
-	ulong i = 0;
-	for (i = 0; i < len; i++)
-		data[i] = data[i] ^ mask[i % 4];
+void WebSocketDoMask(WebSocketHandle* handle) {
+	if (handle->bMask && handle->bFrame) {
+		ulong i = 0;
+		for (i = 0; i < handle->buf.size; i++)
+			handle->buf.data[i] = handle->buf.data[i] ^ handle->mask[i % 4];
+	}
+}
+
+//接收帧头部,并把剩下数据位置放到buf中
+//返回是否已经接收完头部
+void WebSocketGetFrameHead(WebSocketHandle* handle, char* data, ulong len) {
+	if (!data || data[0] == 0 || len == 0 || handle->bHead)
+		return;
+
+	if (NULL == handle->buf.data)
+		membuf_init(&handle->buf, 128);
+	int l = (int)strlen_x(handle->head, sizeof(handle->head));
+	int left = sizeof(handle->head) - l, use=0;
+	if (left > len)
+		left = len;
+	if (left > 0) {
+		memcpy(handle->head + l, data, left);
+	}
+	l = (int)strlen_x(handle->head, sizeof(handle->head));//收集的 frame 头部长度;
+	if (l > 0) {
+		handle->bFinal = ((uchar)handle->head[0] >> 7);//是否结束
+		handle->extCode = ((uchar)handle->head[0] & 0x70);//扩展码
+		handle->opCode = (uchar)handle->head[0] & 0xF;//OPCode
+		if(l>1)
+			handle->bMask = ((uchar)handle->head[1] >> 7);
+		if (l > 2) {
+			ulong dlen= (uchar)data[1] & 0x7f;//Payload长度
+			ulong tLen;
+			if (dlen < 126) { //如果其值在0-125，则是payload的真实长度(ApplicationData长度,ExtensionData长度为0)
+				handle->len = dlen;
+				if (handle->bMask) {
+					if (l > 5) {//防止头部不够长度的错误
+						memcpy(handle->mask, handle->head + 2, 4);
+						handle->bHead = 1;
+						use = 6;
+					}
+				}
+				else { //没用掩码
+					handle->bHead = 1;
+					use = 2;
+				}
+			}
+			else if (dlen == 126 && l>3) { //如果值是126，则后面2个字节形成的16位无符号整型数(ushort)的值是payload的真实长度，掩码就紧更着后面
+				handle->len = handle->head[2] * 0x100UL + (uchar)handle->head[3];//逐字节转换
+				if (handle->bMask) {
+					if (l > 7) {//防止头部不够长度的错误
+						memcpy(handle->mask, handle->head + 4, 4);
+						handle->bHead = 1;
+						use = 8;
+					}
+				}
+				else { //没用掩码
+					handle->bHead = 1;
+					use = 4;
+				}
+			}
+			else if(l>10){ //如果值是127，则后面8个字节形成的64位无符号整型数(uint64)的值是payload的真实长度，掩码就紧更着后面
+				handle->len = handle->head[6] * 0x1000000ULL + handle->head[7] * 0x10000ULL + handle->head[8] * 0x100ULL + (uchar)handle->head[9];//逐字节转换为ulong
+				if (handle->bMask) {
+					if (l > 13) {//防止头部不够长度的错误
+						memcpy(handle->mask, handle->head + 10, 4);
+						handle->bHead = 1;
+						use = 14;
+					}
+				}
+				else { //没用掩码
+					handle->bHead = 1;
+					use = 10;
+				}
+			}
+			if (handle->bHead) {
+				//剩余的是数据,放到 buf
+				if (use < l) {
+					membuf_append_data(&handle->buf, handle->head + use, l - use);
+				}
+				if (left < len) {
+					membuf_append_data(&handle->buf, data + left, len - left);
+				}
+				handle->bFrame == (handle->len == handle->buf.size);
+				WebSocketDoMask(handle);
+			}
+		}
+	}
 }
 
 //从帧中取得实际数据
-ulong WebSocketGetData(WebSocketHandle* handle, char* data, ulong len)
-{
-	if (!handle || !data) return 0;
-	handle->isEof = (char)(data[0] >> 7);//是否结束
-	handle->dfExt = (data[0] & 0x70);//扩展码
-	handle->type = data[0] & 0xF;//OPCode
-	char hasMask = (char)(data[1] >> 7);
-	char Mask[4];
+uchar WebSocketGetFrame(WebSocketHandle* handle, char* data, ulong len) {
+	if (!handle || !data || len<1)
+		return 0;
 	membuf_t* buf = &handle->buf;
-	//Payload长度是ExtensionData长度与ApplicationData长度之和。
-	//ExtensionData长度可能是0，这种情况下，Payload长度即是ApplicationData长度(默认ExtensionData长度是0)
-	ulong tLen;//本次真实数据长度
-	ulong Len = data[1] & 0x7f;//Payload长度
-	//当前帧,第一截数据
-	if (Len < 126) //如果其值在0-125，则是payload的真实长度(ApplicationData长度,ExtensionData长度为0)
-	{
-		if (hasMask)
-		{
-			if ((len - 6) > 0)//防止结尾帧数据不够长度的错误
-			{
-				memcpy(Mask, &data[2], 4);
-				tLen = len - 6;
-				Len = (Len > 0 && Len > tLen) ? tLen : Len;
-				membuf_append_data(buf, &data[6], Len);
-				WebSocketDoMask((char*)(buf->data + buf->size - Len), Len, Mask);
-			}
-		}
-		else //没用掩码
-			if ((len - 2) > 0)
-			{
-				tLen = len - 2;
-				Len = (Len > 0 && Len > tLen) ? tLen : Len;
-				membuf_append_data(buf, &data[2], Len);
-			}
+	if (handle->bHead == 0) {
+		WebSocketGetFrameHead(handle, data, len);
 	}
-	else if (Len == 126)//如果值是126，则后面2个字节形成的16位无符号整型数(ushort)的值是payload的真实长度，掩码就紧更着后面
-	{
-		Len = data[2] * 0x100UL + (uchar)data[3];//逐字节转换
-		if (hasMask)
-		{
-			if ((len - 8) > 0)
-			{
-				memcpy(Mask, &data[4], 4);//防止结尾帧数据不够长度的错误
-				tLen = len - 8;
-				Len = (Len > 0 && Len > tLen) ? tLen : Len;
-				membuf_append_data(buf, &data[8], Len);
-				WebSocketDoMask((char*)(buf->data + buf->size - Len), Len, Mask);
-			}
-		}
-		else //没用掩码
-			if ((len - 4) > 0)
-			{
-				tLen = len - 4;
-				Len = Len > tLen ? tLen : Len;
-				membuf_append_data(buf, &data[4], tLen);
-			}
+	else if (handle->bFrame == 0) {
+		membuf_append_data(buf, data, len);
+		handle->bFrame == (handle->len == handle->buf.size);
+		WebSocketDoMask(handle);
 	}
-	else if (Len == 127)//如果值是127，则后面8个字节形成的64位无符号整型数(uint64)的值是payload的真实长度，掩码就紧更着后面
-	{
-		//Len = data[2] * 0x100000000000000ULL + data[3] * 0x1000000000000ULL + data[4] * 0x10000000000ULL + data[5] * 0x100000000ULL
-		//		+data[6]*0x1000000ULL+data[7]*0x10000ULL+data[8]*0x100ULL+data[9]*0x1ULL;//逐字节转换
-		Len = data[6] * 0x1000000ULL + data[7] * 0x10000ULL + data[8] * 0x100ULL + (uchar)data[9];//逐字节转换为ulong
-		if (hasMask)
-		{
-			if ((len - 14) > 0)//防止结尾帧数据不够长度的错误
-			{
-				memcpy(Mask, &data[10], 4);
-				tLen = len - 14;
-				Len = Len > tLen ? tLen : Len;
-				membuf_append_data(buf, &data[14], Len);
-				WebSocketDoMask((char*)(buf->data + buf->size - Len), Len, Mask);
-			}
-		}
-		else //没用掩码
-			if ((len - 10) > 0)
-			{
-				tLen = len - 10;
-				Len = Len > tLen ? tLen : Len;
-				membuf_append_data(buf, &data[10], Len);
-			}
-	}
-	return Len;
+	return handle->bFrame;
 }
+
 //转换为一个WebSocket帧,无mask (need free return)
 char* WebSocketMakeFrame(const char* data, ulong* dlen, uchar op)
 {
-	if (data == NULL)
-		return NULL;
 	membuf_t buf;
-	membuf_init(&buf, 129);
+	if (*dlen < 126) {
+		membuf_init(&buf, *dlen + 2);
+		buf.size = 2;
+		//数据长度
+		buf.data[1] = (uchar)*dlen;
+	}
+	else if (*dlen < 65536) {
+		membuf_init(&buf, *dlen + 4);
+		buf.size = 4;
+		buf.data[1] = 0x7E;
+		//数据长度
+		buf.data[2] = (*dlen >> 8) & 255;
+		buf.data[3] = (*dlen) & 255;
+	}
+	else {
+		membuf_init(&buf, *dlen + 10);
+		buf.size = 10;
+		buf.data[1] = 0x7F;
+		//数据长度,64位数据大小
+		buf.data[2] = (*dlen >> 56) & 255;
+		buf.data[3] = (*dlen >> 48) & 255;
+		buf.data[4] = (*dlen >> 40) & 255;
+		buf.data[5] = (*dlen >> 32) & 255;
+		buf.data[6] = (*dlen >> 24) & 255;
+		buf.data[7] = (*dlen >> 16) & 255;
+		buf.data[8] = (*dlen >> 8) & 255;
+		buf.data[9] = (*dlen) & 255;
+	}
 	//第一byte,10000000, fin = 1, rsv1 rsv2 rsv3均为0, opcode = 0x01,即数据为文本帧
 	buf.data[0] = 0x80 + op;//0x81 最后一个包 |(无扩展协议)| 控制码(0x1表示文本帧)
-	if (*dlen > 0) { //要有数据
-		if (*dlen <= 125)
-		{
-			//数据长度
-			buf.data[1] = (uchar)*dlen;
-			buf.size = 2;
-		}
-		else if (*dlen <= 65535)
-		{
-			buf.data[1] = 0x7E;
-			//数据长度
-			buf.data[2] = (*dlen >> 8) & 255;
-			buf.data[3] = (*dlen) & 255;
-			buf.size = 4;
-		}
-		else
-		{
-			buf.data[1] = 0x7F;
-			//数据长度,前4字节留空,保存32位数据大小
-			//buf.data[2] = (*dlen >> 56) & 255;
-			//buf.data[3] = (*dlen >> 48) & 255;
-			//buf.data[4] = (*dlen >> 40) & 255;
-			//buf.data[5] = (*dlen >> 32) & 255;
-			buf.data[6] = (*dlen >> 24) & 255;
-			buf.data[7] = (*dlen >> 16) & 255;
-			buf.data[8] = (*dlen >> 8) & 255;
-			buf.data[9] = (*dlen) & 255;
-			buf.size = 10;
-		}
-	}
-	membuf_append_data(&buf, data, *dlen);
+	if(data!=NULL && *dlen>0)
+		membuf_append_data(&buf, data, *dlen);
 	*dlen = buf.size;
-	membuf_trunc(&buf);
+	//membuf_trunc(&buf);
 	return (char*)buf.data;
 }
 
@@ -1548,6 +1824,13 @@ size_t strinstr(const char* s1, const char* s2)
 	return s1 - cur;
 }
 
+//获取字符串长度,包括中间有'\0'字符的
+size_t strlen_x(const char* str, size_t len) {
+	while (len > 0 && str[len - 1]==0)
+		len--;
+	return len;
+}
+
 //int32 转二进制字符串
 char* u2b(uint n) {
 	static char b[33] = { 0 };
@@ -1571,6 +1854,13 @@ char* u2b64(ullong n) {
 		b[i] = (n&p) ? '1' : '0';
 	}
 	return b;
+}
+
+void printHex(char* d, int len, int limit, const char* str) {
+	printf("--data Hex--------%s\n", str);
+	for (int i = 0; i < len && i < limit; i++)
+		printf("%0X ", (uchar)d[i]);
+	printf("\n------------------\n");
 }
 
 #ifdef _MSC_VER
@@ -1738,7 +2028,7 @@ static char* getMac(char* mac, char* dv) {
 		perror("ioctl ");
 		return mac;
 	}
-	sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", //以太网MAC地址的长度是48位
+	sprintf(mac, "%02x:%02x:%02x:%02x:%02x:%02x", //以太网MAC地址的长度是48位
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[0],
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[1],
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[2],

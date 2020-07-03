@@ -88,10 +88,11 @@ char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* 
 {
 	if (buf->size < 1)
 		return 1;//防止发生数据为空
+
 	if (pa->flag & 0x2) { //WebSocket
-		printf(buf->data, buf->size < 256 ? buf->size : 256);
+		//printf(buf->data, buf->size < 256 ? buf->size : 256);
 #ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
-		if (pa->flag & 0x4) {
+		//if (pa->flag & 0x4) {
 			size_t len;
 			char *gb, *uc;
 			len = buf->size;
@@ -114,14 +115,14 @@ char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* 
 			printf("-------------------------------------------ws1:%zd  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, len, gb);
 			free(uc);
 			free(gb);
-		}
-		else
+		//}
+		//else
 			//linux 下，系统和源代码文件编码都是是utf8的，就不需要转换
 #endif // _MSC_VER
 			printf("-------------------------------------------ws:%zd  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, buf->size, buf->data);
-		ulong len = buf->size;
-		char* p = WebSocketMakeFrame(buf->data, &len, 1);//文本帧
-		tw_send_data(client, p, len, 0, 1);
+		//ulong len = buf->size;
+		//char* p = WebSocketMakeFrame(buf->data, &len, 1);//文本帧
+		tw_send_data(client, buf->data, buf->size, 1, 0);
 	} else { //Socket
 		printf("-------------------------------------------sk:%zd  dlen=%zd\n%s\n-------------------------------------------\n",pa->sk, buf->size, buf->data);
 		tw_send_data(client, buf->data, buf->size, 1, 0);
@@ -169,7 +170,7 @@ void startWeb(char* dir, int port)
 	tw_config conf;
 	memset(&conf, 0, sizeof(conf));
 	conf.dirlist = 1;//目录列表
-					 //conf.ip = NULL;// "127.0.0.1";
+	//conf.ip = NULL;// "127.0.0.1";
 	conf.port = port;
 	//conf.doc_dir = NULL;//默认程序文件所在目录
 	conf.doc_dir = dir;

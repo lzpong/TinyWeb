@@ -2,16 +2,18 @@
 #ifndef __TOOLS_H__
 #define __TOOLS_H__
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-	typedef unsigned char       uchar;
-	typedef unsigned short      ushort;
-	typedef unsigned int        uint;
-	typedef unsigned long       ulong;
-	typedef long long           llong;
-	typedef unsigned long long  ullong;
+typedef long long           llong;
+typedef unsigned char       uchar;
+typedef unsigned short      ushort;
+typedef unsigned int        uint;
+typedef unsigned long       ulong;
+typedef unsigned long long  ullong;
 
 #define bitAdd(a,b) ((a)|(b))        //加上二进制位
 #define bitHas(a,b) ((a)&(b))        //是否此有二进制位
@@ -108,30 +110,30 @@ extern "C" {
 
 #ifdef _MSC_VER
 	//GB2312 to unicode(need free return) 返回字串（需要释放）长度为：实际长度+2, 末尾\0\0占一字节
-	wchar_t* GB2U(char* pszGbs, uint* wLen);
+	wchar_t* GB2U(const char* pszGbs, uint* wLen);
 	//unicode to utf8(need free return) 返回字串（需要释放）长度为：实际长度+1, 末尾\0占一字节
-	char* U2U8(wchar_t* wszUnicode, uint* aLen);
+	char* U2U8(const wchar_t* wszUnicode, uint* aLen);
 	//utf8 to unicode(need free return) 返回字串（需要释放）长度为：实际长度+2, 末尾\0\0占一字节
-	wchar_t* U82U(char* szU8, uint* wLen);
+	wchar_t* U82U(const char* szU8, uint* wLen);
 	//unicode to GB2312(need free return) 返回字串（需要释放）长度为：实际长度+1, 末尾\0占一字节
-	char* U2GB(wchar_t* wszUnicode, uint* aLen);
+	char* U2GB(const wchar_t* wszUnicode, uint* aLen);
 #else
 	//GB2312 to unicode(need free return) 返回字串（需要释放）长度为：实际长度+2,返回长度小于0为：失败, 末尾\0\0占一字节
-	char* GB2U(char* pszGbs, uint* aLen);
+	char* GB2U(const char* pszGbs, uint* aLen);
 	//unicode to utf8(need free return) 返回字串（需要释放）长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节
-	char* U2U8(char* wszUnicode, uint* aLen);
+	char* U2U8(const char* wszUnicode, uint* aLen);
 	//utf8 to unicode(need free return) 返回字串（需要释放）长度为：实际长度+2,返回长度小于0为：失败, 末尾\0\0占一字节
-	char* U82U(char* szU8, uint* aaLen);
+	char* U82U(const char* szU8, uint* aaLen);
 	//unicode to GB2312(need free return) 返回字串（需要释放）长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节
-	char* U2GB(char* wszUnicode, uint* aLen);
+	char* U2GB(const char* wszUnicode, uint* aLen);
 #endif
 	//GB2312 to utf8(need free return) 返回字串（需要释放）长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节
-	char* GB2U8(char* pszGbs, uint* aLen);
+	char* GB2U8(const char* pszGbs, uint* aLen);
 	//utf8 to GB2312(need free return) 返回字串（需要释放）长度为：实际长度+1,返回长度小于0为：失败, 末尾\0占一字节
-	char* U82GB(char* szU8, uint* aLen);
+	char* U82GB(const char* szU8, uint* aLen);
 
-	char* enc_u82u(char* data, uint* len);
-	char* enc_u2u8(char* data, uint* len);
+	char* enc_u82u(const char* data, uint* len);
+	char* enc_u2u8(const char* data, uint* len);
 
 	//-----------------------------------------------------------------------------------Base64编码解码  win/unix
 
@@ -139,6 +141,26 @@ extern "C" {
 	char* base64_Encode(const uchar* bytes_to_encode, uint in_len);
 	//Base64解码,需要释放返回值(need free return)
 	char* base64_Decode(const char* encoded_string);
+
+	//-----------------------------------------------------------------------------------MD5计算摘要  win/unix
+
+	//MD5计算摘要 缓存中间值结构体
+	typedef struct MD5_CONTEXT {
+		uint lo, hi;
+		uint a, b, c, d;
+		uchar buffer[64];
+		uint block[16];
+	} MD5_CONTEXT;
+	//初始化 结构体
+	void md5_init(struct MD5_CONTEXT* ctx);
+	//使用长度为 len 的 data 内容更新消息摘要
+	void md5_update(struct MD5_CONTEXT* ctx, const uchar* data, ulong len);
+	//结束计算并返回摘要, dst 长度16字节(定长的16字节数据,中间可能有'\0',,要作为字符输出:printf("%02X ", dst[i]);)
+	void md5_final(struct MD5_CONTEXT* ctx, uchar* dst);
+	//直接计算src的摘要, dst 长度16字节(定长的16字节数据,中间可能有'\0',,要作为字符输出:printf("%02X ", dst[i]);)
+	void md5_sum(uchar* dst, const uchar* src, size_t len);
+	//转换摘要为字符串, dst 长度16字节
+	char* md5_print(const uchar* dst, char *buf);
 
 	//-----------------------------------------------------------------------------------SHA1计算摘要  win/unix
 
@@ -175,8 +197,8 @@ extern "C" {
 	typedef struct WebSocketHandle {
 		membuf_t buf;//原始帧数据
 	//data[0]
-		uchar isEof : 1;//是否是结束帧 data[0]>>7
-		uchar dfExt : 3;//是否有扩展定义 (data[0]>>4) & 0x7
+		uchar bFinal : 1;//是否是结束帧 data[0]>>7
+		uchar extCode : 3;//是否有扩展定义 (data[0]>>4) & 0x7
 		/*控制码/帧类型 type 的定义data[0] & 0xF
 		0x0表示附加数据帧
 		0x1表示文本数据帧
@@ -186,15 +208,22 @@ extern "C" {
 		0x9表示ping
 		0xA表示pong
 		0xB-F暂时无定义，为以后的控制帧保留 */
-		uchar type : 4;
+		uchar opCode : 4;
+		uchar bFrame:2;//是否完整帧
+		uchar bMask :2;//是否有掩码
+		uchar bHead :2;//是否头部接收完
+		char mask[4];//掩码
+		char head[14];//帧头部
+		ulong len;//帧数据长度
 	} WebSocketHandle;
+	void WebSocketHandleInit(WebSocketHandle* handle);
 	//传入http头,返回WebSocket握手Key,非http升级ws则返回NULL
 	//需要释放返回值(need free return)
 	char* WebSocketHandShak(const char* key);
 	//从帧中取得实际数据 (帧不应超过32位大小)
-	ulong WebSocketGetData(WebSocketHandle* handle, char* data, ulong len);
+	uchar WebSocketGetFrame(WebSocketHandle* handle, char* data, ulong len);
 	//转换为一个WebSocket帧,无mask (need free return)
-	//op:控制码/帧类型  0x0表示附加数据帧   0x1表示文本数据帧 ...
+	//op:控制码/帧类型  0x0表示附加数据帧   0x1表示文本数据帧 0x2表示二进制数据帧
 	char* WebSocketMakeFrame(const char* data, ulong* len, uchar op);
 
 	//-----------------------------------------------------------------------------------工具函数/杂项  win/unix
@@ -241,10 +270,15 @@ extern "C" {
 	//从头比较字符串,返回相同的长度,不区分大小写
 	size_t strinstr(const char* s1, const char* s2);
 
+	//获取字符串长度,包括中间有'\0'字符的
+	size_t strlen_x(const char* str, size_t len);
+
 	//int32 转二进制字符串
 	char* u2b(uint n);
 	//int64 转二进制字符串
 	char* u2b64(ullong n);
+
+	void printHex(char* d, int len, int limit, const char* str);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -67,12 +67,12 @@ extern "C" {
 #endif
 
 typedef struct tw_peerAddr {
-	uchar  flag;//标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧)
-	ushort port;
-	ushort fport;
-	size_t   sk;
-	char   ip[17];
-	char   fip[17];
+	uchar  flag;//标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket 高位4bit(flag>>4)与WebSocket协议每帧的opcode相同)
+	ushort port;//客户端端口
+	ushort fport;//本机端口
+	size_t sk;//socket
+	char   ip[17];//客户端IP
+	char   fip[17];//本机IP
 }tw_peerAddr;
 
 typedef struct tw_reqHeads {
@@ -81,7 +81,7 @@ typedef struct tw_reqHeads {
 	char path[512]; //路径
 	char query[1500];//参数
 	char* data; //数据
-	char cookie[260];//cookie
+	char cookie[1025];//cookie
 	size_t contentLen;//Content Lenth
 	size_t len; //接收的数据长度
 	long long Range_frm, Range_to;
@@ -99,32 +99,32 @@ typedef struct tw_config {
 	char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
 	ushort port;     //服务监听端口
 	char* charset;  //文档编码(默认utf-8)
-	//数据
-	void* data;//用户数据,如对象指针
+
+	void* udata;    //用户数据,如对象指针
 
 	//客户端接入
-	char (*on_connect)(void* data, uv_stream_t* client, tw_peerAddr* pa);
+	char (*on_connect)(void* udata, uv_stream_t* client, tw_peerAddr* pa);
 
 	//返回非0表示已经处理处理请求
 	//返回0表示没有适合的处理请求，将自动查找文件/文件夹，若未找到则发送404响应
 	//此功能便于程序返回自定义功能
 	//heads成员不需要free
 	//pa->flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
-	char (*on_request)(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* heads);
+	char (*on_request)(void* udata, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* heads);
 
 	//Socket 或 WebSocket 数据, 可以通过buf->flag 或 pa->flag判断
 	//buf成员不需要free
 	//pa->flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
-	char (*on_data)(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* buf);
+	char (*on_data)(void* udata, uv_stream_t* client, tw_peerAddr* pa, membuf_t* buf);
 
 	//Socket 检测到错误(此时链接可能已经断开)
 	//错误消息格式："%d:%s,%s"
 	//pa->flag:标志字节 ([0~7]: [0]是否需要保持连接 [1]是否WebSocket [2]是否WebSocket文本帧
-	char (*on_error)(void* data, uv_stream_t* client, tw_peerAddr* pa,int errcode, char* errstr);
+	char (*on_error)(void* udata, uv_stream_t* client, tw_peerAddr* pa,int errcode, char* errstr);
 
 	//Socket 已关闭(此时链接已经断开)
 	//flag:标志字节 ([0~7]: [0]是否需要保持连接<非长连接为http> [1]是否WebSocket
-	char (*on_close)(void* data, uv_stream_t* client, tw_peerAddr* pa);
+	char (*on_close)(void* udata, uv_stream_t* client, tw_peerAddr* pa);
 } tw_config;
 
 
@@ -168,8 +168,8 @@ const char* tw_get_content_type(const char* fileExt);
 //发送数据到客户端; 如果是短连接,则发送完后会关闭连接
 //data：待发送数据
 //len： 数据长度, -1 将自动计算数据长度
-//need_copy_data：是否需要复制数据
-//need_free_data：是否需要free数据, 如果need_copy_data非零则忽略此参数
+//need_copy_data：是否需要复制数据; 如果是 WebSocket 就是 opCode
+//need_free_data：是否需要free数据; 如果need_copy_data非零则忽略此参数
 void tw_send_data(uv_stream_t* client, const void* data, size_t len, char need_copy_data, char need_free_data);
 
 //发送'200 OK' 响应; 不会释放(free)传入的数据(u8data)
