@@ -8,12 +8,12 @@
 extern "C" {
 #endif
 
-typedef long long           llong;
-typedef unsigned char       uchar;
-typedef unsigned short      ushort;
-typedef unsigned int        uint;
-typedef unsigned long       ulong;
-typedef unsigned long long  ullong;
+	typedef long long           llong;
+	typedef unsigned char       uchar;
+	typedef unsigned short      ushort;
+	typedef unsigned int        uint;
+	typedef unsigned long       ulong;
+	typedef unsigned long long  ullong;
 
 #define bitAdd(a,b) ((a)|(b))        //加上二进制位
 #define bitHas(a,b) ((a)&(b))        //是否此有二进制位
@@ -209,9 +209,9 @@ typedef unsigned long long  ullong;
 		0xA表示pong
 		0xB-F暂时无定义，为以后的控制帧保留 */
 		uchar opCode : 4;
-		uchar bFrame:2;//是否完整帧
-		uchar bMask :2;//是否有掩码
-		uchar bHead :2;//是否头部接收完
+		uchar bFrame : 2;//是否完整帧
+		uchar bMask : 2;//是否有掩码
+		uchar bHead : 2;//是否头部接收完
 		char mask[4];//掩码
 		char head[14];//帧头部
 		ulong len;//帧数据长度
@@ -260,6 +260,10 @@ typedef unsigned long long  ullong;
 	//szLen: szDate的长度大小
 	//addSecond: 当前时间加上多少秒
 	char* getGmtTime(char* szDate, int szLen, int addSecond);
+#ifdef __GNUC__
+	//暂停/睡眠(毫秒)
+	int msleep(unsigned int msecs);
+#endif // __GNUC__
 
 	//字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
 	llong str2stmp(const char *strTime);

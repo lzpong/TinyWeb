@@ -57,12 +57,9 @@ void membuf_uninit(membuf_t* buf) {
 	memset(buf, 0, sizeof(membuf_t));
 }
 //清除数据（数据覆盖为NULL），并缩小buffer大小
-void membuf_clear(membuf_t* buf, size_t maxSize)
-{
-	if (buf->data && buf->size)
-	{
-		if (maxSize > 1 && buf->buffer_size > maxSize)
-		{
+void membuf_clear(membuf_t* buf, size_t maxSize) {
+	if (buf->data && buf->size) {
+		if (maxSize > 1 && buf->buffer_size > maxSize) {
 			uchar* p = (uchar*)realloc(buf->data, maxSize);
 			//防止realloc分配失败，或返回的地址一样
 			assert(p);
@@ -71,8 +68,7 @@ void membuf_clear(membuf_t* buf, size_t maxSize)
 			buf->size = 0;
 			buf->buffer_size = maxSize;
 		}
-		else
-		{
+		else {
 			buf->size = 0;
 		}
 		memset(buf->data, 0, buf->buffer_size);
@@ -172,21 +168,18 @@ void membuf_move(membuf_t* buf, size_t offset, size_t size) {
 #include <direct.h>
 
 //获取工作目录路径,不带'\'
-char* getWorkPath()
-{
+char* getWorkPath() {
 	static char CurPath[260] = { 0 };
 	GetCurrentDirectory(259, CurPath);
 	return CurPath;
 }
 //获取程序文件所在路径,不带'\'
-char* getProcPath()
-{
+char* getProcPath() {
 	static char CurPath[260] = { 0 };
 	GetModuleFileName(GetModuleHandle(NULL), CurPath, 259);
 	//获取当前目录绝对路径，即去掉程序名，包括去掉最后的'\'
 	size_t i = strlen(CurPath) - 1;
-	for (; i > 0 && CurPath[i] != '\\'; --i)
-	{
+	for (; i > 0 && CurPath[i] != '\\'; --i) {
 		CurPath[i] = 0;
 	}
 	if (i > 2 && CurPath[i] == '\\')
@@ -195,8 +188,7 @@ char* getProcPath()
 }
 
 //建立目录,递归建立
-int makeDir(const char * path, int mod)
-{
+int makeDir(const char * path, int mod) {
 	char pth[513];
 	strncpy(pth, path, 512);
 	char *p = strrchr(pth, '\\');
@@ -210,7 +202,7 @@ int makeDir(const char * path, int mod)
 			p = (char*)strrchr(pth, '/');
 		if (p) {
 			*p = 0;
-			if(!isExist(pth))
+			if (!isExist(pth))
 				makeDir(pth, mod);
 		}
 	}
@@ -218,8 +210,7 @@ int makeDir(const char * path, int mod)
 }
 
 //获取文件/文件夹信息
-inline struct _finddata_t GetFileInfo(const char* lpPath)
-{
+inline struct _finddata_t GetFileInfo(const char* lpPath) {
 	struct _finddata_t fileinfo;
 	memset(&fileinfo, 0, sizeof(struct _finddata_t));
 	intptr_t hFind = _findfirst(lpPath, &fileinfo);
@@ -228,33 +219,29 @@ inline struct _finddata_t GetFileInfo(const char* lpPath)
 }
 
 //路径是否存在(0：不存在  1：存在:文件  2：存在:文件夹)
-char isExist(const char* path)
-{
+char isExist(const char* path) {
 	struct _finddata_t fd = GetFileInfo(path);
 	return (fd.name[0] && fd.attrib) ? ((fd.attrib & FILE_ATTRIBUTE_DIRECTORY) ? 2 : 1) : 0;
 }
 
 //是否文件(1:是文件  0:非文件/不存在)
-char isFile(const char* path)
-{
+char isFile(const char* path) {
 	struct _finddata_t fd = GetFileInfo(path);
 	return (fd.name[0] && !(fd.attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
 //是否目录(1:是目录  0;非目录/不存在)
-char isDir(const char* path)
-{
+char isDir(const char* path) {
 	struct _finddata_t fd = GetFileInfo(path);
 	return (fd.name[0] && (fd.attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
 //返回列表目录Json字符串,need free the return
-char* listDir(const char* fullpath, const char* reqPath)
-{
+char* listDir(const char* fullpath, const char* reqPath) {
 	int fnum = 0;
 	membuf_t buf;
 	membuf_init(&buf, 2048);
-	membuf_append_format(&buf, "{\"path\":\"%s\",\"files\":[\r\n\0\0", reqPath);
+	membuf_append_format(&buf, "{\"path\":\"%s\",\"files\":[\r\n", reqPath);
 
 	//文件(size>-1) 或 目录（size=-1）   [name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
 	struct _finddatai64_t fdt;
@@ -264,22 +251,18 @@ char* listDir(const char* fullpath, const char* reqPath)
 	snprintf(szFind, 255, "%s\\*", fullpath);
 	hFind = _findfirsti64(szFind, &fdt);
 	//[name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
-	while (hFind != -1)//一次查找循环
-	{
+	while (hFind != -1) {//一次查找循环
 		//最后修改时间
 		struct tm *t = localtime(&fdt.time_write);//年月日 时分秒
-		if (fdt.attrib & FILE_ATTRIBUTE_DIRECTORY)//文件夹
-		{
-			if (strncmp(fdt.name, ".", 1) == 0)
-			{
+		if (fdt.attrib & FILE_ATTRIBUTE_DIRECTORY) {//文件夹
+			if (strncmp(fdt.name, ".", 1) == 0) {
 				if (_findnexti64(hFind, &fdt))
 					break;//下一个文件
 				continue;
 			}
-			membuf_append_format(&buf, "{\"name\":\"%s/\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":\"-\",\"type\":\"D\"},\n", fdt.name, t->tm_year+1900, t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+			membuf_append_format(&buf, "{\"name\":\"%s/\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":\"-\",\"type\":\"D\"},\n", fdt.name, t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
 		}
-		else //文件
-		{
+		else {//文件
 			fnum++;
 			membuf_append_format(&buf, "{\"name\":\"%s\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":%lld,\"type\":\"F\"},\n", fdt.name, t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, fdt.size);
 		}
@@ -298,16 +281,14 @@ char* listDir(const char* fullpath, const char* reqPath)
 #else //_GNUC_
 
 //获取工作目录路径,不带'/'
-char* getWorkPath()
-{
+char* getWorkPath() {
 	static char CurPath[260] = { 0 };
 	getcwd(CurPath, 259);
 	return CurPath;
 }
 
 //建立目录,递归建立
-int makeDir(const char * path, int mod)
-{
+int makeDir(const char * path, int mod) {
 	char pth[513];
 	strncpy(pth, path, 512);
 	char *p = strrchr(pth, '\\');
@@ -325,33 +306,28 @@ int makeDir(const char * path, int mod)
 				makeDir(pth, mod);
 		}
 	}
-	return mkdir(path,mod);
+	return mkdir(path, mod);
 }
 
 //获取程序文件所在路径,不带'/'
-char* getProcPath()
-{
+char* getProcPath() {
 	static char CurPath[260] = { 0 };
 	int cnt = readlink("/proc/self/exe", CurPath, 259);
-	if (cnt > 0 || cnt < 260)
-	{
+	if (cnt > 0 || cnt < 260) {
 		//获取程序路径，即去掉程序名，包括去掉最后的'/'
 		int i;
-		for (i = cnt - 1; i > 0 && CurPath[i] != '/'; --i)
-		{
+		for (i = cnt - 1; i > 0 && CurPath[i] != '/'; --i) {
 			CurPath[i] = 0;
 		}
-		if (i>2 && CurPath[i]=='/')
+		if (i > 2 && CurPath[i] == '/')
 			CurPath[i] = 0;
 	}
 	return CurPath;
 }
 
 //路径是否存在(0：不存在  1：存在:文件  2：存在:文件夹)
-char isExist(const char* path)
-{
-	if (path && access(path, F_OK) == 0)
-	{
+char isExist(const char* path) {
+	if (path && access(path, F_OK) == 0) {
 		struct stat info;
 		stat(path, &info);
 		if (S_ISDIR(info.st_mode) || S_ISLNK(info.st_mode))//dir or link
@@ -361,21 +337,18 @@ char isExist(const char* path)
 	return 0;
 }
 //是否目录(1:是目录  0;非目录/不存在)
-char isDir(const char* path)
-{
-	struct stat info;
-	if (path && !stat(path, &info))// && opendir(path)!=NULL)
-	{
+char isDir(const char* path) {
+	if (path && access(path, F_OK) == 0) {// && opendir(path)!=NULL)
+		struct stat info;
+		stat(path, &info);
 		if (S_ISDIR(info.st_mode) || S_ISLNK(info.st_mode))//dir or link
 			return 1;
 	}
 	return 0;
 }
 //是否文件(1:是文件  0:非文件/不存在)
-char isFile(const char* path)
-{
-	if (path)
-	{
+char isFile(const char* path) {
+	if (path && access(path, F_OK) == 0) {
 		struct stat info;
 		stat(path, &info);
 		if (S_ISREG(info.st_mode))//普通文件
@@ -385,8 +358,7 @@ char isFile(const char* path)
 }
 
 //返回列表目录Json字符串,need free the return
-char* listDir(const char* fullpath, const char* reqPath)
-{
+char* listDir(const char* fullpath, const char* reqPath) {
 	int fnum = 0;
 	char tmp[1024];
 	struct tm *mtime;
@@ -395,18 +367,15 @@ char* listDir(const char* fullpath, const char* reqPath)
 	struct stat statbuf;
 	membuf_t buf;
 	membuf_init(&buf, 2048);
-	membuf_append_format(&buf, "{\"path\":\"%s\",\"files\":[\r\n\0\0", reqPath);
+	membuf_append_format(&buf, "{\"path\":\"%s\",\"files\":[\r\n", reqPath);
 
 	//文件(size>-1) 或 目录（size=-1）   [name:"file1.txt",mtime:"2016-11-28 16:25:46",size:123],\r\n
-	if ((dp = opendir(fullpath)) != NULL)
-	{
-		while ((fileInfo = readdir(dp)) != NULL)
-		{
-			snprintf(tmp, 1023, "%s/%s\0\0", fullpath, fileInfo->d_name);
+	if ((dp = opendir(fullpath)) != NULL) {
+		while ((fileInfo = readdir(dp)) != NULL) {
+			snprintf(tmp, 1023, "%s/%s", fullpath, fileInfo->d_name);
 			stat(tmp, &statbuf);//stat函数需要传入绝对路径或相对（工作目录的）路径
 			mtime = localtime(&statbuf.st_mtime);
-			if (S_ISDIR(statbuf.st_mode))
-			{
+			if (S_ISDIR(statbuf.st_mode)) {
 				if (strncmp(fileInfo->d_name, ".", 1) == 0)
 					continue;
 				membuf_append_format(&buf, "{\"name\":\"%s/\",\"mtime\":\"%d-%02d-%02d %02d:%02d:%02d\",\"size\":\"-\",\"type\":\"D\"},\n", fileInfo->d_name, (1900 + mtime->tm_year), (1 + mtime->tm_mon), mtime->tm_mday, mtime->tm_hour, mtime->tm_min, mtime->tm_sec);
@@ -448,34 +417,29 @@ char* listDir(const char* fullpath, const char* reqPath)
 *        在Intel处理器中采用小端法表示, 在此采用小端法表示. (低地址存低位)
 *     2. 请保证 pOutput 缓冲区有最少有 6 字节的空间大小!
 ****************************************************************************/
-int enc_unicode_to_utf8_one(size_t unic, uchar *pOutput, int outSize)
-{
+int enc_unicode_to_utf8_one(size_t unic, uchar *pOutput, int outSize) {
 	assert(pOutput != NULL);
 	assert(outSize >= 6);
 
-	if (unic <= 0x0000007F)
-	{
+	if (unic <= 0x0000007F) {
 		// U-00000000 - U-0000007F:  0xxxxxxx
 		*pOutput = (unic & 0x7F);
 		return 1;
 	}
-	else if (unic >= 0x00000080 && unic <= 0x000007FF)
-	{
+	else if (unic >= 0x00000080 && unic <= 0x000007FF) {
 		// * U-00000080 - U-000007FF:  110xxxxx 10xxxxxx
 		*pOutput = ((unic >> 6) & 0x1F) | 0xC0;
 		*(pOutput + 1) = (unic & 0x3F) | 0x80;
 		return 2;
 	}
-	else if (unic >= 0x00000800 && unic <= 0x0000FFFF)
-	{
+	else if (unic >= 0x00000800 && unic <= 0x0000FFFF) {
 		// U-00000800 - U-0000FFFF:  1110xxxx 10xxxxxx 10xxxxxx
 		*pOutput = ((unic >> 12) & 0x0F) | 0xE0;
 		*(pOutput + 1) = ((unic >> 6) & 0x3F) | 0x80;
 		*(pOutput + 2) = (unic & 0x3F) | 0x80;
 		return 3;
 	}
-	else if (unic >= 0x00010000 && unic <= 0x001FFFFF)
-	{
+	else if (unic >= 0x00010000 && unic <= 0x001FFFFF) {
 		// U-00010000 - U-001FFFFF:  11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
 		*pOutput = ((unic >> 18) & 0x07) | 0xF0;
 		*(pOutput + 1) = ((unic >> 12) & 0x3F) | 0x80;
@@ -483,8 +447,7 @@ int enc_unicode_to_utf8_one(size_t unic, uchar *pOutput, int outSize)
 		*(pOutput + 3) = (unic & 0x3F) | 0x80;
 		return 4;
 	}
-	else if (unic >= 0x00200000 && unic <= 0x03FFFFFF)
-	{
+	else if (unic >= 0x00200000 && unic <= 0x03FFFFFF) {
 		// U-00200000 - U-03FFFFFF:  111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
 		*pOutput = ((unic >> 24) & 0x03) | 0xF8;
 		*(pOutput + 1) = ((unic >> 18) & 0x3F) | 0x80;
@@ -493,8 +456,7 @@ int enc_unicode_to_utf8_one(size_t unic, uchar *pOutput, int outSize)
 		*(pOutput + 4) = (unic & 0x3F) | 0x80;
 		return 5;
 	}
-	else if (unic >= 0x04000000 && unic <= 0x7FFFFFFF)
-	{
+	else if (unic >= 0x04000000 && unic <= 0x7FFFFFFF) {
 		// U-04000000 - U-7FFFFFFF:  1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
 		*pOutput = ((unic >> 30) & 0x01) | 0xFC;
 		*(pOutput + 1) = ((unic >> 24) & 0x3F) | 0x80;
@@ -507,8 +469,7 @@ int enc_unicode_to_utf8_one(size_t unic, uchar *pOutput, int outSize)
 	return 0;
 }
 
-int enc_get_utf8_size(const unsigned char pInput)
-{
+int enc_get_utf8_size(const unsigned char pInput) {
 	unsigned char c = pInput;
 	// 0xxxxxxx 返回0   0x0
 	// 10xxxxxx 不存在  0x80
@@ -542,8 +503,7 @@ int enc_get_utf8_size(const unsigned char pInput)
 *        字节序分为大端(Big Endian)和小端(Little Endian)两种;
 *        在Intel处理器中采用小端法表示, 在此采用小端法表示. (低地址存低位)
 ****************************************************************************/
-int enc_utf8_to_unicode_one(const uchar* pInput, uchar *Unic)
-{
+int enc_utf8_to_unicode_one(const uchar* pInput, uchar *Unic) {
 	assert(pInput != NULL && Unic != NULL);
 
 	// b1 表示UTF-8编码的pInput中的高字节, b2 表示次高字节, ...
@@ -553,73 +513,72 @@ int enc_utf8_to_unicode_one(const uchar* pInput, uchar *Unic)
 	int utfbytes = enc_get_utf8_size(*pInput);
 	uchar *pOutput = (uchar *)Unic;
 
-	switch (utfbytes)
-	{
-	case 1://1字节
-		*pOutput = *pInput;
-		break;
-	case 2://2字节
-		b1 = *pInput;
-		b2 = *(pInput + 1);
-		if ((b2 & 0xC0) != 0x80)
-			return 0;
-		*pOutput = (b1 << 6) + (b2 & 0x3F);
-		*(pOutput + 1) = (b1 >> 2) & 0x07;
-		break;
-	case 3:
-		b1 = *pInput;
-		b2 = *(pInput + 1);
-		b3 = *(pInput + 2);
-		if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80))
-			return 0;
-		*pOutput = (b2 << 6) + (b3 & 0x3F);
-		*(pOutput + 1) = (b1 << 4) + ((b2 >> 2) & 0x0F);
-		break;
-	case 4:
-		b1 = *pInput;
-		b2 = *(pInput + 1);
-		b3 = *(pInput + 2);
-		b4 = *(pInput + 3);
-		if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
-			|| ((b4 & 0xC0) != 0x80))
-			return 0;
-		*pOutput = (b3 << 6) + (b4 & 0x3F);
-		*(pOutput + 1) = (b2 << 4) + ((b3 >> 2) & 0x0F);
-		*(pOutput + 2) = ((b1 << 2) & 0x1C) + ((b2 >> 4) & 0x03);
-		break;
-	case 5:
-		b1 = *pInput;
-		b2 = *(pInput + 1);
-		b3 = *(pInput + 2);
-		b4 = *(pInput + 3);
-		b5 = *(pInput + 4);
-		if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
-			|| ((b4 & 0xC0) != 0x80) || ((b5 & 0xC0) != 0x80))
-			return 0;
-		*pOutput = (b4 << 6) + (b5 & 0x3F);
-		*(pOutput + 1) = (b3 << 4) + ((b4 >> 2) & 0x0F);
-		*(pOutput + 2) = (b2 << 2) + ((b3 >> 4) & 0x03);
-		*(pOutput + 3) = (b1 << 6);
-		break;
-	case 6:
-		b1 = *pInput;
-		b2 = *(pInput + 1);
-		b3 = *(pInput + 2);
-		b4 = *(pInput + 3);
-		b5 = *(pInput + 4);
-		b6 = *(pInput + 5);
-		if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
-			|| ((b4 & 0xC0) != 0x80) || ((b5 & 0xC0) != 0x80)
-			|| ((b6 & 0xC0) != 0x80))
-			return 0;
-		*pOutput = (b5 << 6) + (b6 & 0x3F);
-		*(pOutput + 1) = (b5 << 4) + ((b6 >> 2) & 0x0F);
-		*(pOutput + 2) = (b3 << 2) + ((b4 >> 4) & 0x03);
-		*(pOutput + 3) = ((b1 << 6) & 0x40) + (b2 & 0x3F);
-		break;
-	default:
-		utfbytes = 0;
-		break;
+	switch (utfbytes) {
+		case 1://1字节
+			*pOutput = *pInput;
+			break;
+		case 2://2字节
+			b1 = *pInput;
+			b2 = *(pInput + 1);
+			if ((b2 & 0xC0) != 0x80)
+				return 0;
+			*pOutput = (b1 << 6) + (b2 & 0x3F);
+			*(pOutput + 1) = (b1 >> 2) & 0x07;
+			break;
+		case 3:
+			b1 = *pInput;
+			b2 = *(pInput + 1);
+			b3 = *(pInput + 2);
+			if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80))
+				return 0;
+			*pOutput = (b2 << 6) + (b3 & 0x3F);
+			*(pOutput + 1) = (b1 << 4) + ((b2 >> 2) & 0x0F);
+			break;
+		case 4:
+			b1 = *pInput;
+			b2 = *(pInput + 1);
+			b3 = *(pInput + 2);
+			b4 = *(pInput + 3);
+			if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
+				|| ((b4 & 0xC0) != 0x80))
+				return 0;
+			*pOutput = (b3 << 6) + (b4 & 0x3F);
+			*(pOutput + 1) = (b2 << 4) + ((b3 >> 2) & 0x0F);
+			*(pOutput + 2) = ((b1 << 2) & 0x1C) + ((b2 >> 4) & 0x03);
+			break;
+		case 5:
+			b1 = *pInput;
+			b2 = *(pInput + 1);
+			b3 = *(pInput + 2);
+			b4 = *(pInput + 3);
+			b5 = *(pInput + 4);
+			if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
+				|| ((b4 & 0xC0) != 0x80) || ((b5 & 0xC0) != 0x80))
+				return 0;
+			*pOutput = (b4 << 6) + (b5 & 0x3F);
+			*(pOutput + 1) = (b3 << 4) + ((b4 >> 2) & 0x0F);
+			*(pOutput + 2) = (b2 << 2) + ((b3 >> 4) & 0x03);
+			*(pOutput + 3) = (b1 << 6);
+			break;
+		case 6:
+			b1 = *pInput;
+			b2 = *(pInput + 1);
+			b3 = *(pInput + 2);
+			b4 = *(pInput + 3);
+			b5 = *(pInput + 4);
+			b6 = *(pInput + 5);
+			if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)
+				|| ((b4 & 0xC0) != 0x80) || ((b5 & 0xC0) != 0x80)
+				|| ((b6 & 0xC0) != 0x80))
+				return 0;
+			*pOutput = (b5 << 6) + (b6 & 0x3F);
+			*(pOutput + 1) = (b5 << 4) + ((b6 >> 2) & 0x0F);
+			*(pOutput + 2) = (b3 << 2) + ((b4 >> 4) & 0x03);
+			*(pOutput + 3) = ((b1 << 6) & 0x40) + (b2 & 0x3F);
+			break;
+		default:
+			utfbytes = 0;
+			break;
 	}
 	return utfbytes;
 }
@@ -660,40 +619,35 @@ char* enc_u82u(const char* data, uint* len) {
 
 #ifdef _MSC_VER
 //GB2312 to unicode
-wchar_t* GB2U(const char* pszGbs, uint* wLen)
-{
+wchar_t* GB2U(const char* pszGbs, uint* wLen) {
 	*wLen = MultiByteToWideChar(CP_ACP, 0, pszGbs, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*wLen * sizeof(wchar_t));
 	MultiByteToWideChar(CP_ACP, 0, pszGbs, -1, wStr, *wLen);
 	return wStr;
 }
 //unicode to utf8
-char* U2U8(const wchar_t* wszUnicode, uint* aLen)
-{
+char* U2U8(const wchar_t* wszUnicode, uint* aLen) {
 	*aLen = WideCharToMultiByte(CP_UTF8, 0, (PWSTR)wszUnicode, -1, NULL, 0, NULL, NULL);
 	char* szStr = (char*)malloc(*aLen * sizeof(char));
 	WideCharToMultiByte(CP_UTF8, 0, (PWSTR)wszUnicode, -1, szStr, *aLen, NULL, NULL);
 	return szStr;
 }
 //utf8 to unicode
-wchar_t* U82U(const char* szU8, uint* wLen)
-{
+wchar_t* U82U(const char* szU8, uint* wLen) {
 	*wLen = MultiByteToWideChar(CP_UTF8, 0, szU8, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*wLen * sizeof(wchar_t));
 	MultiByteToWideChar(CP_UTF8, 0, szU8, -1, wStr, *wLen);
 	return wStr;
 }
 //unicode to GB2312
-char* U2GB(const wchar_t* wszUnicode, uint* aLen)
-{
+char* U2GB(const wchar_t* wszUnicode, uint* aLen) {
 	*aLen = WideCharToMultiByte(CP_ACP, 0, wszUnicode, -1, NULL, 0, NULL, NULL);
 	char* szStr = (char*)malloc(*aLen * sizeof(char));
 	WideCharToMultiByte(CP_ACP, 0, wszUnicode, -1, szStr, *aLen, NULL, NULL);
 	return szStr;
 }
 //GB2312 to utf8
-char* GB2U8(const char* pszGbs, uint* aLen)
-{
+char* GB2U8(const char* pszGbs, uint* aLen) {
 	*aLen = MultiByteToWideChar(CP_ACP, 0, pszGbs, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*aLen * sizeof(wchar_t));
 	MultiByteToWideChar(CP_ACP, 0, pszGbs, -1, wStr, *aLen);
@@ -705,8 +659,7 @@ char* GB2U8(const char* pszGbs, uint* aLen)
 	return szStr;
 }
 //utf8 to GB2312
-char* U82GB(const char* szU8, uint* aLen)
-{
+char* U82GB(const char* szU8, uint* aLen) {
 	*aLen = MultiByteToWideChar(CP_UTF8, 0, szU8, -1, NULL, 0);
 	wchar_t* wStr = (wchar_t*)malloc(*aLen * sizeof(wchar_t));
 	MultiByteToWideChar(CP_UTF8, 0, szU8, -1, wStr, *aLen);
@@ -721,8 +674,7 @@ char* U82GB(const char* szU8, uint* aLen)
 #else
 
 //代码转换:从一种编码转为另一种编码
-size_t code_convert(char *from_charset, char *to_charset, char *inbuf, size_t inlen, char *outbuf, uint* outlen)
-{
+size_t code_convert(const char *from_charset, const char *to_charset, const char *inbuf, size_t inlen, char *outbuf, size_t* outlen) {
 	iconv_t cd;
 	size_t rc = 0, len = *outlen;
 	char **pin = &inbuf;
@@ -740,8 +692,7 @@ size_t code_convert(char *from_charset, char *to_charset, char *inbuf, size_t in
 }
 
 //GB2312 to unicode(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* GB2U(const char* pszGbs, uint* aLen)
-{
+char* GB2U(const char* pszGbs, uint* aLen) {
 	size_t len = *aLen * 4;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
 	size_t rc = code_convert("gb2312", "unicode", pszGbs, *aLen, outbuf, &len);
@@ -750,8 +701,7 @@ char* GB2U(const char* pszGbs, uint* aLen)
 	return outbuf;
 }
 //unicode to utf8(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* U2U8(const char* wszUnicode, uint* aLen)
-{
+char* U2U8(const char* wszUnicode, uint* aLen) {
 	size_t len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
 	size_t rc = code_convert("unicode", "utf-8", wszUnicode, *aLen, outbuf, &len);
@@ -760,8 +710,7 @@ char* U2U8(const char* wszUnicode, uint* aLen)
 	return outbuf;
 }
 //utf8 to unicode(need free) 返回字串长度为:实际长度+1, 末尾\0站一字节（需要释放）
-char* U82U(const char* szU8, uint* aLen)
-{
+char* U82U(const char* szU8, uint* aLen) {
 	size_t len = *aLen * 2;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
 	size_t rc = code_convert("utf-8", "unicode", szU8, *aLen, outbuf, &len);
@@ -770,8 +719,7 @@ char* U82U(const char* szU8, uint* aLen)
 	return outbuf;
 }
 //unicode to GB2312(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
-char* U2GB(const char* wszUnicode, uint* aLen)
-{
+char* U2GB(const char* wszUnicode, uint* aLen) {
 	size_t len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
 	size_t rc = code_convert("unicode", "gb2312", wszUnicode, *aLen, outbuf, &len);
@@ -781,8 +729,7 @@ char* U2GB(const char* wszUnicode, uint* aLen)
 }
 
 //GB2312 to utf8(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
-char* GB2U8(const char* pszGbs, uint* aLen)
-{
+char* GB2U8(const char* pszGbs, uint* aLen) {
 	size_t len = *aLen * 3;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
 	size_t rc = code_convert("gb2312", "utf-8", pszGbs, *aLen, outbuf, &len);
@@ -791,8 +738,7 @@ char* GB2U8(const char* pszGbs, uint* aLen)
 	return outbuf;
 }
 //utf8 to GB2312(need free) 返回字串（需要释放）长度为:实际长度+1, 末尾\0站一字节
-char* U82GB(const char* szU8, uint* aLen)
-{
+char* U82GB(const char* szU8, uint* aLen) {
 	size_t len = *aLen;
 	char *outbuf = (char*)malloc(len + 1); outbuf[0] = 0;
 	size_t rc = code_convert("utf-8", "gb2312", szU8, *aLen, outbuf, &len);
@@ -813,12 +759,10 @@ char* U82GB(const char* szU8, uint* aLen)
 *			 binUCS2 - UCS2字节流数组
 * 返 回 值： 转换到UCS2字节流数组中的U16单元个数
 ***************************************************************************/
-size_t UTF8ToUCS2(const uchar* binUTF8, size_t uCount, ushort* binUCS2)
-{
+size_t UTF8ToUCS2(const uchar* binUTF8, size_t uCount, ushort* binUCS2) {
 	size_t uLength = 0;
 	uchar* szTemp = (uchar*)binUTF8;
-	while ((uint)(szTemp - binUTF8) < uCount)
-	{
+	while ((uint)(szTemp - binUTF8) < uCount) {
 		if (*szTemp <= 0x7F) //0xxxxxxx
 		{
 			binUCS2[uLength] = binUCS2[uLength] | (ushort)(*szTemp & 0x7F);
@@ -837,11 +781,9 @@ size_t UTF8ToUCS2(const uchar* binUTF8, size_t uCount, ushort* binUCS2)
 			binUCS2[uLength] = binUCS2[uLength] | ((ushort)(*(szTemp) & 0x0F) << 12);
 			szTemp = szTemp + 3;
 		}
-		else
-		{
+		else {
 			return 0;
 		}
-
 		uLength++;
 	}
 	return uLength;
@@ -853,8 +795,7 @@ size_t UTF8ToUCS2(const uchar* binUTF8, size_t uCount, ushort* binUCS2)
 #pragma region url编码解码
 
 //url编码 (len为buf的长度)
-char* url_encode(const char *url, uint* len)
-{
+char* url_encode(const char *url, uint* len) {
 	if (!url)
 		return NULL;
 	membuf_t buf;
@@ -882,8 +823,7 @@ char* url_encode(const char *url, uint* len)
 }
 
 //url解码
-char* url_decode(char *url)
-{
+char* url_decode(char *url) {
 	char *o, *s;
 	uint tmp;
 
@@ -911,8 +851,7 @@ char base64_end = '=';
 #define is_base64(c)  (isalnum(c) || (c == '+') || (c == '/'))
 
 //Base64编码,需要释放返回值(need free return)
-char* base64_Encode(const uchar* bytes_to_encode, uint in_len)
-{
+char* base64_Encode(const uchar* bytes_to_encode, uint in_len) {
 	membuf_t ret;
 	int i = 0, j = 0;
 	uchar char_array_3[3];
@@ -934,8 +873,7 @@ char* base64_Encode(const uchar* bytes_to_encode, uint in_len)
 		}
 	}
 
-	if (i)
-	{
+	if (i) {
 		for (j = i; j < 3; j++)
 			char_array_3[j] = '\0';
 
@@ -954,8 +892,7 @@ char* base64_Encode(const uchar* bytes_to_encode, uint in_len)
 }
 
 //Base64解码,需要释放返回值(need free return)
-char* base64_Decode(const char* encoded_string)
-{
+char* base64_Decode(const char* encoded_string) {
 	size_t in_len = strlen(encoded_string);
 	int i = 0;
 	int j = 0;
@@ -1177,8 +1114,7 @@ void md5_init(MD5_CONTEXT *ctx) {
 	ctx->hi = 0;
 }
 //使用长度为 len 的 data 内容更新消息摘要
-void md5_update(MD5_CONTEXT* ctx, const uchar* data, ulong len)
-{
+void md5_update(MD5_CONTEXT* ctx, const uchar* data, ulong len) {
 	uint saved_lo;
 	ulong used, available;
 
@@ -1243,8 +1179,7 @@ void md5_final(MD5_CONTEXT* ctx, uchar* dst) {
 	memset(ctx, 0, sizeof(*ctx));
 }
 //直接计算src的摘要, dst 长度不小于16字节
-void md5_sum(uchar* dst, const uchar* src, size_t len)
-{
+void md5_sum(uchar* dst, const uchar* src, size_t len) {
 	MD5_CONTEXT ctx;
 	md5_init(&ctx);
 	md5_update(&ctx, src, len);
@@ -1269,19 +1204,17 @@ char* md5_print(const uchar* dst, char *buf) {
 * Rotate a 32 bit integer by n bytes
 ****************/
 #if defined(__GNUC__) && defined(__i386__)
-static inline u32 rol(u32 x, int n)
-{
+static inline u32 rol(u32 x, int n) {
 	__asm__("roll %%cl,%0"
-		:"=r" (x)
-		: "0" (x), "c" (n));
+			:"=r" (x)
+			: "0" (x), "c" (n));
 	return x;
 }
 #else
 #define rol(x,n) ( ((x) << (n)) | ((x) >> (32-(n))) )
 #endif
 
-void hash1_Reset(SHA1_CONTEXT* hd)
-{
+void hash1_Reset(SHA1_CONTEXT* hd) {
 	hd->bFinal = 0;
 	hd->h0 = 0x67452301;
 	hd->h1 = 0xefcdab89;
@@ -1296,8 +1229,7 @@ void hash1_Reset(SHA1_CONTEXT* hd)
 /*
 * Transform the message X which consists of 16 32-bit-words
 */
-static void hash1_transform(SHA1_CONTEXT* hd, uchar *data)
-{
+static void hash1_transform(SHA1_CONTEXT* hd, uchar *data) {
 	uint a, b, c, d, e, tm;
 	uint x[16];
 
@@ -1311,14 +1243,15 @@ static void hash1_transform(SHA1_CONTEXT* hd, uchar *data)
 #ifdef BIG_ENDIAN_HOST
 	memcpy(x, data, 64);
 #else
-	{ int i;
-	uchar *p2;
-	for (i = 0, p2 = (uchar*)x; i < 16; i++, p2 += 4) {
-		p2[3] = *data++;
-		p2[2] = *data++;
-		p2[1] = *data++;
-		p2[0] = *data++;
-	}
+	{
+		int i;
+		uchar *p2;
+		for (i = 0, p2 = (uchar*)x; i < 16; i++, p2 += 4) {
+			p2[3] = *data++;
+			p2[2] = *data++;
+			p2[1] = *data++;
+			p2[0] = *data++;
+		}
 	}
 #endif
 
@@ -1432,8 +1365,7 @@ static void hash1_transform(SHA1_CONTEXT* hd, uchar *data)
 }
 
 // Update the message digest with the contents of INBUF with length INLEN.
-void hash1_Write(SHA1_CONTEXT* hd, uchar *inbuf, size_t inlen)
-{
+void hash1_Write(SHA1_CONTEXT* hd, uchar *inbuf, size_t inlen) {
 	if (hd->bFinal)
 		hash1_Reset(hd);
 	if (hd->count == 64) { /* flush the buffer */
@@ -1467,8 +1399,7 @@ void hash1_Write(SHA1_CONTEXT* hd, uchar *inbuf, size_t inlen)
 * handle will the destroy the returned buffer.
 * Returns: 20 bytes representing the digest.
 */
-void hash1_Final(SHA1_CONTEXT* hd)
-{
+void hash1_Final(SHA1_CONTEXT* hd) {
 	uint t, msb, lsb;
 	uchar *p;
 
@@ -1547,22 +1478,21 @@ void WebSocketHandleInit(WebSocketHandle* handle) {
 }
 
 //WebSocket握手Key计算
-char* WebSocketHandShak(const char* key)
-{
-	char akey[137] = { 0 };
-	char acc[165] = { 0 }, *p;
+char* WebSocketHandShak(const char* key) {
+	char akey[140] = { 0 };
+	char acc[170] = { 0 }, *p;
 	int len;
 	SHA1_CONTEXT hd;
 
 	strncpy(akey, key, 99);
-	strncpy(akey + strlen(key), "258EAFA5-E914-47DA-95CA-C5AB0DC85B11", 36);
+	strncpy(akey + strlen(key), "258EAFA5-E914-47DA-95CA-C5AB0DC85B11", 40);
 
 	hash1_Reset(&hd);
 	hash1_Write(&hd, (uchar*)akey, strlen(akey));
 	hash1_Final(&hd);
 
 	p = base64_Encode(hd.buf, 20);
-	len = snprintf(acc, 164, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", p);
+	len = snprintf(acc, 169, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", p);
 	free(p);
 
 	p = (char*)malloc(len + 1);
@@ -1588,7 +1518,7 @@ void WebSocketGetFrameHead(WebSocketHandle* handle, char* data, ulong len) {
 	if (NULL == handle->buf.data)
 		membuf_init(&handle->buf, 128);
 	int l = (int)strlen_x(handle->head, sizeof(handle->head));
-	int left = sizeof(handle->head) - l, use=0;
+	int left = sizeof(handle->head) - l, use = 0;
 	if (left > len)
 		left = len;
 	if (left > 0) {
@@ -1599,11 +1529,10 @@ void WebSocketGetFrameHead(WebSocketHandle* handle, char* data, ulong len) {
 		handle->bFinal = ((uchar)handle->head[0] >> 7);//是否结束
 		handle->extCode = ((uchar)handle->head[0] & 0x70);//扩展码
 		handle->opCode = (uchar)handle->head[0] & 0xF;//OPCode
-		if(l>1)
+		if (l > 1)
 			handle->bMask = ((uchar)handle->head[1] >> 7);
 		if (l > 2) {
-			ulong dlen= (uchar)data[1] & 0x7f;//Payload长度
-			ulong tLen;
+			ulong dlen = (uchar)data[1] & 0x7f;//Payload长度
 			if (dlen < 126) { //如果其值在0-125，则是payload的真实长度(ApplicationData长度,ExtensionData长度为0)
 				handle->len = dlen;
 				if (handle->bMask) {
@@ -1618,7 +1547,7 @@ void WebSocketGetFrameHead(WebSocketHandle* handle, char* data, ulong len) {
 					use = 2;
 				}
 			}
-			else if (dlen == 126 && l>3) { //如果值是126，则后面2个字节形成的16位无符号整型数(ushort)的值是payload的真实长度，掩码就紧更着后面
+			else if (dlen == 126 && l > 3) { //如果值是126，则后面2个字节形成的16位无符号整型数(ushort)的值是payload的真实长度，掩码就紧更着后面
 				handle->len = handle->head[2] * 0x100UL + (uchar)handle->head[3];//逐字节转换
 				if (handle->bMask) {
 					if (l > 7) {//防止头部不够长度的错误
@@ -1632,7 +1561,7 @@ void WebSocketGetFrameHead(WebSocketHandle* handle, char* data, ulong len) {
 					use = 4;
 				}
 			}
-			else if(l>10){ //如果值是127，则后面8个字节形成的64位无符号整型数(uint64)的值是payload的真实长度，掩码就紧更着后面
+			else if (l > 10) { //如果值是127，则后面8个字节形成的64位无符号整型数(uint64)的值是payload的真实长度，掩码就紧更着后面
 				handle->len = handle->head[6] * 0x1000000ULL + handle->head[7] * 0x10000ULL + handle->head[8] * 0x100ULL + (uchar)handle->head[9];//逐字节转换为ulong
 				if (handle->bMask) {
 					if (l > 13) {//防止头部不够长度的错误
@@ -1654,7 +1583,7 @@ void WebSocketGetFrameHead(WebSocketHandle* handle, char* data, ulong len) {
 				if (left < len) {
 					membuf_append_data(&handle->buf, data + left, len - left);
 				}
-				handle->bFrame == (handle->len == handle->buf.size);
+				handle->bFrame = (handle->len == handle->buf.size);
 				WebSocketDoMask(handle);
 			}
 		}
@@ -1663,7 +1592,7 @@ void WebSocketGetFrameHead(WebSocketHandle* handle, char* data, ulong len) {
 
 //从帧中取得实际数据
 uchar WebSocketGetFrame(WebSocketHandle* handle, char* data, ulong len) {
-	if (!handle || !data || len<1)
+	if (!handle || !data || len < 1)
 		return 0;
 	membuf_t* buf = &handle->buf;
 	if (handle->bHead == 0) {
@@ -1671,15 +1600,14 @@ uchar WebSocketGetFrame(WebSocketHandle* handle, char* data, ulong len) {
 	}
 	else if (handle->bFrame == 0) {
 		membuf_append_data(buf, data, len);
-		handle->bFrame == (handle->len == handle->buf.size);
+		handle->bFrame = (handle->len == handle->buf.size);
 		WebSocketDoMask(handle);
 	}
 	return handle->bFrame;
 }
 
 //转换为一个WebSocket帧,无mask (need free return)
-char* WebSocketMakeFrame(const char* data, ulong* dlen, uchar op)
-{
+char* WebSocketMakeFrame(const char* data, ulong* dlen, uchar op) {
 	membuf_t buf;
 	if (*dlen < 126) {
 		membuf_init(&buf, *dlen + 2);
@@ -1711,7 +1639,7 @@ char* WebSocketMakeFrame(const char* data, ulong* dlen, uchar op)
 	}
 	//第一byte,10000000, fin = 1, rsv1 rsv2 rsv3均为0, opcode = 0x01,即数据为文本帧
 	buf.data[0] = 0x80 + op;//0x81 最后一个包 |(无扩展协议)| 控制码(0x1表示文本帧)
-	if(data!=NULL && *dlen>0)
+	if (data != NULL && *dlen > 0)
 		membuf_append_data(&buf, data, *dlen);
 	*dlen = buf.size;
 	//membuf_trunc(&buf);
@@ -1723,14 +1651,12 @@ char* WebSocketMakeFrame(const char* data, ulong* dlen, uchar op)
 //-----------------------------------------------------------------------------------工具/杂项  win/linux
 #pragma region 工具/杂项
 
-inline int day_of_year(int y, int m, int d)
-{
+inline int day_of_year(int y, int m, int d) {
 	int k, leap, s;
 	int days[13] = { 0,31,28,31,30,31,30,31,31,30,31,30,31 };
 	leap = (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0);
 	s = d;
-	for (k = 1; k < m; k++)
-	{
+	for (k = 1; k < m; k++) {
 		s += days[k];
 	}
 	if (leap == 1 && m > 2)
@@ -1742,8 +1668,7 @@ inline int day_of_year(int y, int m, int d)
 //szDate: 存放GMT时间的缓存区(至少 char[30])，外部传入
 //szLen: szDate的长度大小
 //addSecond: 当前时间加上多少秒
-char* getGmtTime(char* szDate,int szLen,int addSecond)
-{
+char* getGmtTime(char* szDate, int szLen, int addSecond) {
 	time_t rawTime;
 	struct tm* timeInfo;
 	time(&rawTime);
@@ -1754,10 +1679,8 @@ char* getGmtTime(char* szDate,int szLen,int addSecond)
 }
 
 //字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
-llong str2stmp(const char *strTime)
-{
-	if (strTime != NULL)
-	{
+llong str2stmp(const char *strTime) {
+	if (strTime != NULL) {
 		struct tm sTime;
 		memset(&sTime, 0, sizeof(struct tm));
 		sTime.tm_isdst = -1; // daylight savings time flag
@@ -1800,8 +1723,7 @@ llong str2stmp(const char *strTime)
 }
 
 //时间戳(秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
-char* stmp2str(llong t, char* str, int strlen)
-{
+char* stmp2str(llong t, char* str, int strlen) {
 	if (t < 1000000)
 		t = time(0);
 	struct tm *sTime = localtime((time_t*)&t);
@@ -1811,11 +1733,9 @@ char* stmp2str(llong t, char* str, int strlen)
 }
 
 //从头比较字符串,返回相同的长度,不区分大小写
-size_t strinstr(const char* s1, const char* s2)
-{
+size_t strinstr(const char* s1, const char* s2) {
 	const char* cur = s1;
-	while (s1 && *s1>0 && s2 && *s2>0)
-	{
+	while (s1 && *s1 > 0 && s2 && *s2 > 0) {
 		if (*s1 == *s2 || (isalpha(*s1) && isalpha(*s2) && abs(*s1 - *s2) == 32))
 			s1++, s2++;
 		else
@@ -1826,7 +1746,7 @@ size_t strinstr(const char* s1, const char* s2)
 
 //获取字符串长度,包括中间有'\0'字符的
 size_t strlen_x(const char* str, size_t len) {
-	while (len > 0 && str[len - 1]==0)
+	while (len > 0 && str[len - 1] == 0)
 		len--;
 	return len;
 }
@@ -1837,8 +1757,7 @@ char* u2b(uint n) {
 	b[31] = '0';
 	int i = 31;
 	uint p = 1;
-	for (; i >= 0; i--, p <<= 1)
-	{
+	for (; i >= 0; i--, p <<= 1) {
 		b[i] = (n&p) ? '1' : '0';
 	}
 	return b;
@@ -1849,8 +1768,7 @@ char* u2b64(ullong n) {
 	b[63] = '0';
 	int i = 63;
 	ullong p = 1;
-	for (; i >= 0; i--, p <<= 1)
-	{
+	for (; i >= 0; i--, p <<= 1) {
 		b[i] = (n&p) ? '1' : '0';
 	}
 	return b;
@@ -1865,8 +1783,7 @@ void printHex(char* d, int len, int limit, const char* str) {
 
 #ifdef _MSC_VER
 //获取当前时间信息
-tm_u GetLocaTime()
-{
+tm_u GetLocaTime() {
 	//struct timeval  tv;
 	SYSTEMTIME st;
 	tm_u     tmu;
@@ -1889,8 +1806,7 @@ tm_u GetLocaTime()
 	return tmu;
 }
 //获取当天已逝去的秒数
-size_t GetDaySecond()
-{
+size_t GetDaySecond() {
 	SYSTEMTIME st;
 	GetLocalTime(&st);
 	return (st.wHour * 3600 + st.wMinute * 60 + st.wSecond);
@@ -1898,8 +1814,7 @@ size_t GetDaySecond()
 
 #else
 //获取当前时间信息
-tm_u GetLocaTime()
-{
+tm_u GetLocaTime() {
 	struct timeval  tv; //timespec
 	struct tm       *p;
 	tm_u     tmu;
@@ -1920,10 +1835,14 @@ tm_u GetLocaTime()
 	tmu.tm_usec = tv.tv_usec;
 	return tmu;
 }
-
+int msleep(unsigned int msecs) {
+	struct timeval    tval;
+	tval.tv_sec = msecs / 1000;
+	tval.tv_usec = (msecs % 1000) * 1000;
+	return select(0, NULL, NULL, NULL, &tval);
+}
 //获取当天已逝去的秒数
-size_t GetDaySecond()
-{
+size_t GetDaySecond() {
 	struct timeval  tv;
 	gettimeofday(&tv, NULL);
 	return (tv.tv_sec % 86400);
@@ -1941,15 +1860,13 @@ static char CurMac[25] = { 0 };
 #pragma comment(lib,"Iphlpapi.lib") //需要添加Iphlpapi.lib库
 
 //获取网卡地址
-const char* GetMacAddr()
-{
+const char* GetMacAddr() {
 	if (CurMac[0] < 1)
 		GetIPv4();
 	return CurMac;
 }
 //获取IPv4地址 (第一个IPv4)
-const char* GetIPv4()
-{//详情见：http://www.cnblogs.com/lzpong/p/6137652.html
+const char* GetIPv4() {//详情见：http://www.cnblogs.com/lzpong/p/6137652.html
 	if (CurIPv4[0])
 		return CurIPv4;
 	ulong stSize = sizeof(IP_ADAPTER_INFO);
@@ -1959,8 +1876,7 @@ const char* GetIPv4()
 	//调用GetAdaptersInfo函数,填充pIpAdapterInfo指针变量;其中stSize参数既是一个输入量也是一个输出量
 	int nRel = GetAdaptersInfo(pIpAdapterInfo, &stSize);
 
-	if (ERROR_BUFFER_OVERFLOW == nRel)
-	{
+	if (ERROR_BUFFER_OVERFLOW == nRel) {
 		//如果函数返回的是ERROR_BUFFER_OVERFLOW
 		//则说明GetAdaptersInfo参数传递的内存空间不够,同时其传出stSize,表示需要的空间大小,stSize既是一个输入量也是一个输出量
 		//释放原来的内存空间
@@ -1970,20 +1886,17 @@ const char* GetIPv4()
 		//再次调用GetAdaptersInfo函数,填充pIpAdapterInfo指针变量
 		nRel = GetAdaptersInfo(pIpAdapterInfo, &stSize);
 	}
-	if (ERROR_SUCCESS == nRel)
-	{
+	if (ERROR_SUCCESS == nRel) {
 		//可能有多网卡,因此通过循环去判断
-		while (pIpAdapterInfo)
-		{
-			if (MIB_IF_TYPE_ETHERNET == pIpAdapterInfo->Type)
-			{
+		while (pIpAdapterInfo) {
+			if (MIB_IF_TYPE_ETHERNET == pIpAdapterInfo->Type) {
 				sprintf(CurMac, "%02x:%02x:%02x:%02x:%02x:%02x", //以太网MAC地址的长度是48位
-					(uchar)pIpAdapterInfo->Address[0],
-					(uchar)pIpAdapterInfo->Address[1],
-					(uchar)pIpAdapterInfo->Address[2],
-					(uchar)pIpAdapterInfo->Address[3],
-					(uchar)pIpAdapterInfo->Address[4],
-					(uchar)pIpAdapterInfo->Address[5]);
+						(uchar)pIpAdapterInfo->Address[0],
+						(uchar)pIpAdapterInfo->Address[1],
+						(uchar)pIpAdapterInfo->Address[2],
+						(uchar)pIpAdapterInfo->Address[3],
+						(uchar)pIpAdapterInfo->Address[4],
+						(uchar)pIpAdapterInfo->Address[5]);
 				IP_ADDR_STRING *pIpAddrString = &(pIpAdapterInfo->IpAddressList);
 				strncpy(CurIPv4, pIpAddrString->IpAddress.String, 16);
 				break;
@@ -1998,8 +1911,7 @@ const char* GetIPv4()
 	return CurIPv4;
 }
 //获取IPv6地址 (第一个IPv6)
-const char* GetIPv6()
-{
+const char* GetIPv6() {
 	return CurIPv6;
 }
 
@@ -2017,29 +1929,26 @@ static char* getMac(char* mac, char* dv) {
 	int   sock;
 	if (!mac || !dv)
 		return mac;
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	{
+	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("socket ");
 		return mac;
 	}
 	strcpy(ifreq.ifr_name, dv);
-	if (ioctl(sock, SIOCGIFHWADDR, &ifreq) < 0)
-	{
+	if (ioctl(sock, SIOCGIFHWADDR, &ifreq) < 0) {
 		perror("ioctl ");
 		return mac;
 	}
 	sprintf(mac, "%02x:%02x:%02x:%02x:%02x:%02x", //以太网MAC地址的长度是48位
-		(unsigned char)ifreq.ifr_hwaddr.sa_data[0],
-		(unsigned char)ifreq.ifr_hwaddr.sa_data[1],
-		(unsigned char)ifreq.ifr_hwaddr.sa_data[2],
-		(unsigned char)ifreq.ifr_hwaddr.sa_data[3],
-		(unsigned char)ifreq.ifr_hwaddr.sa_data[4],
-		(unsigned char)ifreq.ifr_hwaddr.sa_data[5]);
+			(unsigned char)ifreq.ifr_hwaddr.sa_data[0],
+			(unsigned char)ifreq.ifr_hwaddr.sa_data[1],
+			(unsigned char)ifreq.ifr_hwaddr.sa_data[2],
+			(unsigned char)ifreq.ifr_hwaddr.sa_data[3],
+			(unsigned char)ifreq.ifr_hwaddr.sa_data[4],
+			(unsigned char)ifreq.ifr_hwaddr.sa_data[5]);
 	return mac;
 }
 //获取IP地址
-static int GetIP_v4_and_v6_linux(int family)
-{
+static int GetIP_v4_and_v6_linux(int family) {
 	struct ifaddrs * ifaplist = NULL, *ifap = NULL;
 	void * tmpAddrPtr = NULL;
 
@@ -2071,23 +1980,20 @@ static int GetIP_v4_and_v6_linux(int family)
 }
 
 //获取网卡地址
-const char* GetMacAddr()
-{
+const char* GetMacAddr() {
 	if (CurMac[0] < 1)
 		GetIP_v4_and_v6_linux(AF_INET);
 	return CurMac;
 }
 
 //获取IPv4地址 (第一个IPv4)
-const char* GetIPv4()
-{
+const char* GetIPv4() {
 	if (CurIPv4[0] < 1)
 		GetIP_v4_and_v6_linux(AF_INET);
 	return CurIPv4;
 }
 //获取IPv6地址 (第一个IPv6)
-const char* GetIPv6()
-{
+const char* GetIPv6() {
 	if (CurIPv6[0] < 1)
 		GetIP_v4_and_v6_linux(AF_INET6);
 	return CurIPv6;

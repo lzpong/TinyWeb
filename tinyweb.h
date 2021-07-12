@@ -93,12 +93,12 @@ typedef struct tw_config {
 	uv_tcp_t _server;
 
 //public data:
-	uchar dirlist:1; //是否允许列出目录
-	char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
-	char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
-	char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
-	ushort port;     //服务监听端口
-	char* charset;  //文档编码(默认utf-8)
+	uchar dirlist:1;      //是否允许列出目录
+	const char* doc_dir;  //Web根目录，绝对路径，末尾带斜杠'\'(uninx为'/')； 默认程序文件所在目录
+	const char* doc_index;//默认主页文件名，逗号分隔； 默认"index.html,index.htm"
+	const char* ip;       //服务的IP地址 is only ipV4, can be NULL or "" or "*", which means "0.0.0.0"
+	ushort port;          //服务监听端口
+	const char* charset;  //文档编码(默认utf-8)
 
 	void* udata;    //用户数据,如对象指针
 
@@ -146,7 +146,7 @@ void tinyweb_stop(uv_loop_t* loop);
 //expires: 多少秒后过期
 //domain: Domain, 域名或IP地址
 //path: Path, 可以是 heads->path
-void tw_make_setcookie(char* set_cookie, int ckLen, const char* key, const char* val, int expires, char* domain, char* path);
+void tw_make_setcookie(char* cookie, int ckLen, const char* key, const char* val, int expires, const char* domain, const char* path);
 
 //制造头部 delete cookie
 void tw_make_delcookie(char* del_cookie, int ckLen, char* key);
