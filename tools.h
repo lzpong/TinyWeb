@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef __TOOLS_H__
 #define __TOOLS_H__
 
@@ -265,7 +265,7 @@ extern "C" {
 	int msleep(unsigned int msecs);
 #endif // __GNUC__
 
-	//字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
+	//字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36" 或 "2016-08-03"
 	llong str2stmp(const char *strTime);
 
 	//时间戳(秒)转换成字符串,字符串格式为:"2016-08-03 06:56:36"
