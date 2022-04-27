@@ -1678,7 +1678,7 @@ char* getGmtTime(char* szDate, int szLen, int addSecond) {
 	return szDate;
 }
 
-//字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36"
+//字符串转换成时间戳(秒),字符串格式为:"2016-08-03 06:56:36" 或 "2016-08-03"
 llong str2stmp(const char *strTime) {
 	if (strTime != NULL) {
 		struct tm sTime;
