@@ -1,4 +1,4 @@
-﻿#include "tinyweb.h"
+#include "tinyweb.h"
 #include "tools.h"
 
 #ifdef __GNUC__
@@ -198,7 +198,7 @@ char* tw_format_http_respone(uv_stream_t* client, const char* status, const char
 		content_length = content ? strlen(content) : 0;
 	totalsize = strlen(status) + strlen(ext_heads) + strlen(content_type) + content_length + 158;
 	respone = (char*)malloc(totalsize + 1);
-	header_size = snprintf(respone, totalsize, "HTTP/1.1 %s\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s; charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
+	header_size = snprintf(respone, totalsize, "HTTP/1.1 %s\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type:%s; charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
 						   , status, szDate, content_type, tw_conf->charset, content_length, ext_heads);
 	assert(header_size > 0);
 	if (content_length)
@@ -227,7 +227,7 @@ void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads
 	getGmtTime(szDate, 30, 0);
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 301 Moved Permanently\r\nDate: %s\r\n"
-			 "Server: TinyWeb\r\nLocation: http://%s%s%s%s\r\nConnection: close\r\n"
+			 "Server: TinyWeb v1.3.0\r\nLocation: http://%s%s%s%s\r\nConnection: close\r\n"
 			 "Content-Type:text/html;charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
 			 "<h1>Moved Permanently</h1><p>The document has moved <a href=\"%s%s%s\">here</a>.</p>"
 			 , szDate
@@ -244,7 +244,7 @@ void tw_302_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads
 	getGmtTime(szDate, 30, 0);
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 302 Moved Temporarily\r\nDate: %s\r\n"
-			 "Server: TinyWeb\r\nLocation: http://%s%s%s%s\r\nConnection: close\r\n"
+			 "Server: TinyWeb v1.3.0\r\nLocation: http://%s%s%s%s\r\nConnection: close\r\n"
 			 "Content-Type:text/html;charset=%s\r\nContent-Length:0\r\n%s\r\n"
 			 , szDate
 			 , heads->host, heads->path, (heads->query[0] ? "?" : ""), (heads->query[0] ? heads->query : "")
@@ -292,10 +292,10 @@ void tw_http_send_file(uv_stream_t* client, tw_reqHeads* heads, const char* ext_
 			respone = (char*)malloc(300 + 1);
 			int respone_size;
 			if (heads->Range_frm == 0) //200 OK
-				respone_size = snprintf(respone, 300, "HTTP/1.1 200 OK\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Length:%llu\r\n%s\r\n"
+				respone_size = snprintf(respone, 300, "HTTP/1.1 200 OK\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Length:%llu\r\n%s\r\n"
 										, szDate, content_type, tw_conf->charset, filet->fsize, ext_heads);
 			else //206 Partial Content
-				respone_size = snprintf(respone, 300, "HTTP/1.1 206 Partial Content\r\nDate: %s\r\nServer: TinyWeb\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Range: %lld-%lld/%llu\r\nContent-Length:%llu\r\n%s\r\n"
+				respone_size = snprintf(respone, 300, "HTTP/1.1 206 Partial Content\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Range: %lld-%lld/%llu\r\nContent-Length:%llu\r\n%s\r\n"
 										, szDate, content_type, tw_conf->charset, heads->Range_frm, heads->Range_to, filet->fsize, filet->lsize, ext_heads);
 			tw_send_data(client, respone, respone_size, 0, 1);
 		}
@@ -348,8 +348,8 @@ const char* tw_get_content_type(const char* fileExt) {
 		return "text/css";
 	else if (strcmpi(fileExt, "json") == 0)
 		return "application/json";
-	else if (strcmpi(fileExt, "log") == 0 || strcmpi(fileExt, "txt") == 0 || strcmpi(fileExt, "ini") == 0
-			 || strcmpi(fileExt, "config") == 0 || strcmpi(fileExt, "conf") == 0 || strcmpi(fileExt, "cfg") == 0
+	else if (strcmpi(fileExt, "txt") == 0 || strcmpi(fileExt, "log") == 0 || strcmpi(fileExt, "ini") == 0
+			 || strcmpi(fileExt, "config") == 0 || strcmpi(fileExt, "conf") == 0 || strcmpi(fileExt, "cfg") == 0 || strcmpi(fileExt, "conf") == 0
 			 || strcmpi(fileExt, "sh") == 0 || strcmpi(fileExt, "bat") == 0)
 		return "text/plain";
 	else if (strcmpi(fileExt, "jpg") == 0 || strcmpi(fileExt, "jpeg") == 0)
@@ -402,8 +402,11 @@ const char* tw_get_content_type(const char* fileExt) {
 //query_stirng: the string after '?' in url, such as "id=0&value=123", maybe NULL or ""
 static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
-	char fullpath[260];//绝对路径（末尾不带斜杠）
-	snprintf(fullpath, 259, "%s/%s", tw_conf->doc_dir, (heads->path[0] == '/' ? heads->path + 1 : heads->path));
+	char fullpath[512];//绝对路径（末尾不带斜杠）
+	if (heads->path[0] == ':')
+		strncpy(fullpath, heads->path+1, 511);
+	else
+		snprintf(fullpath, 511, "%s%s", tw_conf->doc_dir, (heads->path[0] == '/' ? heads->path + 1 : heads->path));
 	//去掉末尾的斜杠
 	char *p = &fullpath[strlen(fullpath) - 1];
 	while (*p == '/' || *p == '\\')
@@ -426,13 +429,14 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 		break;
 		case 2://存在：文件夹
 		{
-			if (heads->path[strlen(heads->path) - 1] != '/') //文件夹要检测末尾'/'
+			if (heads->org_path[strlen(heads->org_path) - 1] != '/') //文件夹 要检测末尾'/'
 			{
-				int len = strlen(heads->path);
-				if (len >= sizeof(heads->path) - 1)
-					len = sizeof(heads->path) - 2;
-				heads->path[len] = '/';
-				heads->path[len + 1] = 0;
+				int len = strlen(heads->org_path);
+				if (len >= sizeof(heads->org_path) - 1)
+					len = sizeof(heads->org_path) - 2;
+				heads->org_path[len] = '/';
+				heads->org_path[len + 1] = 0;
+				strncpy(heads->path, heads->org_path, 512);
 				tw_301_Moved(client, heads, NULL);
 				break;
 			}
@@ -461,30 +465,30 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 					membuf_append(&buf, "<!DOCTYPE html><html><head><title>Index of ");//+path
 #ifdef _MSC_VER
 					if (strnicmp(tw_conf->charset, "utf", 3) == 0) {//utf-8
-						len = strlen(heads->path);
-						p2 = GB2U8(heads->path, &len);
+						len = strlen(heads->org_path);
+						p2 = GB2U8(heads->org_path, &len);
 						membuf_append(&buf, p2);
 					}
 					else
 #endif // _MSC_VER
-						membuf_append(&buf, heads->path);
+						membuf_append(&buf, heads->org_path);
 					membuf_append_format(&buf, "</title><meta name=\"renderer\" content=\"webkit\"><meta charset=\"%\">\r\n", tw_conf->charset);
-					membuf_append(&buf, "</head><body><h1>Index of ");//+path
+					membuf_append(&buf, "<style>th>hr{margin:1px 0}td:nth-child(3){text-align:right}td:last-child{padding-left:10px}</style></head><body><h1>Index of ");//+path
 					if (p2) {
 						membuf_append(&buf, p2);
 						free(p2);
 					}
 					else {
-						membuf_append(&buf, heads->path);
+						membuf_append(&buf, heads->org_path);
 					}
 					membuf_append(&buf, "</h1>\r\n"
 								  "<table>\r\n"
 								  "<thead><tr><th><a href=\"javascript:fssort('type')\">@</a></th><th><a href=\"javascript:fssort('name')\">Name</a></th><th><a href=\"javascript:fssort('size')\">Size</a></th><th><a href=\"javascript:fssort('mtime')\">Last modified</a></th></tr>"
-								  "<tr><th colspan=\"4\"><hr style=\"margin:1px;\"></th></tr></thead>\r\n"
+								  "<tr><th colspan=\"4\"><hr></th></tr></thead>\r\n"
 								  "<tbody id=\"tbody\"></tbody>"
 								  "<tfoot><tr><th colspan=\"4\"><hr></th></tr></tfoot>"
 								  "</table>"
-								  "<address>TinyWeb Server</address>"
+								  "<address>TinyWeb v1.3.0 Server</address>"
 								  "</body></html>\r\n<script type=\"text/javascript\">\r\nvar files=");//+files
 					body = listDir(fullpath, heads->path);
 #ifdef _MSC_VER
@@ -497,9 +501,9 @@ static void tw_request(uv_stream_t* client, tw_reqHeads* heads) {
 #endif // _MSC_VER
 					membuf_append(&buf, body);
 					free(body);
-					membuf_append(&buf, "; \r\nvar html = \"\", p=files.path[files.path.length-1];\n"
+					membuf_append(&buf, ";\n"
 								  "function fsshow(){var html='';for (var r in files.files){r=files.files[r];html+='<tr><td>'+r.type+\"</td><td><a href='\"+r.name+\"'>\"+r.name+'</td><td>'+r.size+'</td><td>'+r.mtime+'</td></tr>';}document.querySelector('tbody').innerHTML = html;}\n"
-								  "if(p!='/'){files.path+='/';}\n"
+								  "if(files.path[files.path.length-1]!='/')files.path+='/';\n"
 								  "files.files.sort(function(a,b){var n=a.type.localeCompare(b.type);if(n)return n;else return a.name.localeCompare(b.name);});\n"
 								  "fsshow();\n"
 								  "function fssort(n){files.files.sort(function(a,b){if(typeof a[n]=='number')return a[n]-b[n];return a[n].localeCompare(b[n])});fsshow();}\n"
@@ -546,7 +550,7 @@ static char* tw_get_http_heads(const uv_buf_t* buf, int len, tw_reqHeads* heads)
 			if (start) *start = 0;
 			//url含有转义编码字符
 			if (strstr(path, "%") != 0) {
-				url_decode(heads->path);
+				url_decode(path);
 #ifdef _MSC_VER //Windows下需要转换编码,因为windows系统的编码是GB2312
 				size_t len = strlen(path);
 				char *gb = U82GB(path, &(unsigned int)len);
@@ -600,8 +604,9 @@ static char* tw_get_http_heads(const uv_buf_t* buf, int len, tw_reqHeads* heads)
 					memmove(start, p, strlen(p) + 1);
 				}
 			}
-			snprintf(heads->path, 512, "%s", path);
-			snprintf(heads->query, 1500, "%s", query);
+			strncpy(heads->path, path, 512);
+			strncpy(heads->org_path, heads->path, 512);
+			strncpy(heads->query, query, 1500);
 
 			key = NULL;
 			//从第二行开始循环处理 头部
@@ -893,13 +898,13 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 //TinyWeb 线程开始运行
 static void tw_run(uv_loop_t* loop) {
 	tw_config* tw_conf = (tw_config*)loop->data;
-	printf("TinyWeb v1.2.2 is started, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
+	printf("TinyWeb v1.3.0 is started, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
 	uv_run(loop, UV_RUN_DEFAULT);
 	uv_stop(loop);
 	if (!uv_loop_close(loop) && loop != uv_default_loop()) {
 		uv_loop_delete(loop);
 	}
-	printf("TinyWeb v1.2.2 is stopped, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
+	printf("TinyWeb v1.3.0 is stopped, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
 	free(tw_conf->doc_dir);
 	free(tw_conf->doc_index);
 	free(tw_conf->charset);
