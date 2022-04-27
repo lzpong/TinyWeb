@@ -8,7 +8,7 @@ TinyWeb功能说明
 auth lzpong 2016/11/24
 功能基于 libuv 跨平台库
 
-0.支持设置文档编码,默认 utf-8
+0.支持设置文档编码, 默认 utf-8
 1.支持使用HTTP: GET/POST方式访问
 2.支持Socket, WebSocket 连接
 3.支持返回404错误页面
@@ -18,19 +18,20 @@ auth lzpong 2016/11/24
 	b.支持其他静态文件：js, css, png, jpeg/jpg, gif, ico, txt, xml, json, log, wam, wav, mp3, mp4, apk 等
 	c.支持其他文件格式, 默认文件类型为："application/octet-stream"
 	d.支持不带扩展名文件访问
-	e.支持 Range 请求参数下载大文件(Range: bytes=sizeFrom-[sizeTo],支持负反向计算)
+	e.支持 Range 请求参数下载大文件(Range: bytes=sizeFrom-[sizeTo], 支持负反向计算)
 6.支持默认index页面(index.html/index.htm)，可以自定义设置
 7.支持目录列表
 8.不允许访问根目录上级文件或文件夹
 9.支持回调
-	a.接收到HTTP请求后先回调（此功能便于程序返回自定义功能）,回调失败或返回0时执行普通http响应
+	a.接收到HTTP请求后先回调（此功能便于程序返回自定义功能）,
+	  回调失败(返回0)时执行普通http响应(此时可以指定返回绝对路径文件/文件夹;路径第一个字符用分号标识:`heads- > path[0] = ':'`)
 	b.WebSocket 数据回调
 	c.socket 数据回调
 10.支持x64,支持超过2G大文件
 11.支持cookie/setcookie
 12.支持添加自定义头部信息
 13.支持POST较大的数据(支持分包发送的http Post内容)
-==============stable,future
+==============stable, future
 14.支持分包发送的http头部(http get)
 
 ```
