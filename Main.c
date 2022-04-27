@@ -17,23 +17,31 @@ auth lzpong 2016/11/24
 	e.支持 Range 请求参数下载大文件(Range: bytes=sizeFrom-[sizeTo],支持负反向计算)
 6.支持默认index页面(index.html/index.htm)，可以自定义设置
 7.支持目录列表
-8.不允许访问根目录上级文件或文件夹
+8.不允许直接访问根目录上级文件或文件夹(可通过程序内指定上级目录或绝对路径访问)
 9.支持回调
-	a.接收到HTTP请求后先回调（此功能便于程序返回自定义功能）,回调失败或返回0时执行普通http响应
+	a.接收到HTTP请求后先回调（此功能便于程序返回自定义功能）,
+	  回调失败(返回0)时执行普通http响应(此时可以指定返回绝对路径文件/文件夹;路径第一个字符用分号标识:`heads- > path[0] = ':'`)
 	b.WebSocket 数据回调
 	c.socket 数据回调
 10.支持x64,支持超过2G大文件
 11.支持cookie/setcookie
 12.支持添加自定义头部信息
+13.支持POST较大的数据(支持分包发送的http Post内容)
 ==============stable
 
 #endif
-
 
 #include "tinyweb.h"
 #include<stdlib.h>
 #include<string.h>
 
+#ifdef __GNUC__
+#define _strcmpi strcasecmp
+#define _strnicmp strncasecmp
+#endif
+
+#define cmpi(d,s) (((d)&&(s))?_strcmpi(d,s)==0:0)
+#define cmpni(d,s,l) (((d)&&(s))?_strnicmp(d,s,l)==0:0)
 
 //404前回调(未找到页面/文件时回调,此功能便于程序返回自定义功能)；返回0表示没有适合的处理请求，需要发送404错误
 char on_request(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* heads)
@@ -79,9 +87,34 @@ char on_request(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* h
 		size_t len;
 		char* rp = tw_format_http_respone(client, "401 Unauthorized", ck, "text/plan", "", -1, &len);
 		tw_send_data(client, rp, len, 0, 1);
-		return 1;
+		return 1;//已处理请求
 	}
-	return 0;
+	else if (cmpni(heads->path, "/logs", 5)) {
+		//也可以使用 工作目录地址
+		char *p = heads->path;
+		int len = (int)strlen(heads->path);
+		if (len > sizeof(heads->path) - 2)
+			len -= 2;
+		memmove(p + 2, heads->path, len);
+		p[0] = p[1] = '.';//-->"../Logs"
+		return 0;//未处理,TinyWeb 继续处理
+	}
+	else if (cmpni(heads->path, "/abspath", 8)) {
+		//也可以使用 绝对目录地址
+		char p[512]; p[0] = ':';//第一个字符冒号表示表示绝对地址
+		strncpy(p+1, "D:/abspath/subdir", 510);//末尾无须带斜杠
+		size_t l = strlen(p);
+		strncpy(p + l, heads->path + 11, 512 - l);
+		strncpy(heads->path, p, 512);
+		return 0;//未处理,TinyWeb 继续处理
+	}
+	else if (cmpi(heads->path, "/gettype")){
+		//动态返回内容
+		char* str="{\"type\":\"UTF-8 string\"}";
+		tw_send_200_OK(client, nullptr, "application/json", str, strlen(str), 0);
+		return 1;//已处理请求
+	}
+	return 0;//返回0表示未处理,TinyWeb 继续处理
 }
 
 char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* buf)
@@ -148,13 +181,13 @@ char on_connect(void* data, uv_stream_t* client, tw_peerAddr* pa)
 	return 0;
 }
 const char* help = 
-"TinyWeb v1.2.2 创建迷你Web(静态)\n"
+"TinyWeb v1.3.0 创建迷你Web\n"
 "\n"
-"TinyWeb  [[dir|port] | [-d dir] [-d port]]\n"
+"TinyWeb  [[dir|port] | [-d dir] [-p port]]\n"
 "\n"
 "Use Like:\n"
 "TinyWeb           使用当前目录,使用默认80端口\n"
-"TinyWeb  -p por   使用当前目录,使用[port]端口\n"
+"TinyWeb  -p port  使用当前目录,使用[port]端口\n"
 "TinyWeb  [port]   使用当前目录,使用[port]端口\n"
 "TinyWeb  -d dir   使用[dir]目录,使用默认80端口\n"
 "TinyWeb  [dir]    使用[dir]目录,使用默认80端口\n"
