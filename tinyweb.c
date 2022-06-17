@@ -75,7 +75,7 @@ static void after_uv_write(uv_write_t* w, int err) {
 			if (tw_conf->on_error)
 				tw_conf->on_error(tw_conf->udata, w->handle, &clidata->pa, err, "handle Has been closed");
 			else
-				printf("after_uv_write sk:%zd　error: handle Has been closed\n", clidata->pa.sk);
+				printf("after_uv_write sk: %zd　error: handle Has been closed\n", clidata->pa.sk);
 		}
 		else
 			uv_close((uv_handle_t*)w->handle, after_uv_close_client);
@@ -198,7 +198,7 @@ char* tw_format_http_respone(uv_stream_t* client, const char* status, const char
 		content_length = content ? strlen(content) : 0;
 	totalsize = strlen(status) + strlen(ext_heads) + strlen(content_type) + content_length + 158;
 	respone = (char*)malloc(totalsize + 1);
-	header_size = snprintf(respone, totalsize, "HTTP/1.1 %s\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s; charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
+	header_size = snprintf(respone, totalsize, "HTTP/1.1 %s\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s; charset=%s\r\nContent-Length: %zd\r\n%s\r\n"
 						   , status, szDate, content_type, tw_conf->charset, content_length, ext_heads);
 	assert(header_size > 0);
 	if (content_length)
@@ -228,7 +228,7 @@ void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 301 Moved Permanently\r\nDate: %s\r\n"
 			 "Server: TinyWeb v1.3.0\r\nLocation: http://%s%s%s%s\r\nConnection: close\r\n"
-			 "Content-Type: text/html;charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
+			 "Content-Type: text/html;charset=%s\r\nContent-Length: %zd\r\n%s\r\n"
 			 "<h1>Moved Permanently</h1><p>The document has moved <a href=\"%s%s%s\">here</a>.</p>"
 			 , szDate
 			 , heads->host, heads->path, (heads->query[0] ? "?" : ""), (heads->query[0] ? heads->query : "")
@@ -245,7 +245,7 @@ void tw_302_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 302 Moved Temporarily\r\nDate: %s\r\n"
 			 "Server: TinyWeb v1.3.0\r\nLocation: http://%s%s%s%s\r\nConnection: close\r\n"
-			 "Content-Type: text/html;charset=%s\r\nContent-Length:0\r\n%s\r\n"
+			 "Content-Type: text/html;charset=%s\r\nContent-Length: 0\r\n%s\r\n"
 			 , szDate
 			 , heads->host, heads->path, (heads->query[0] ? "?" : ""), (heads->query[0] ? heads->query : "")
 			 , tw_conf->charset, ext_heads);
@@ -292,10 +292,10 @@ void tw_http_send_file(uv_stream_t* client, tw_reqHeads* heads, const char* ext_
 			respone = (char*)malloc(300 + 1);
 			int respone_size;
 			if (heads->Range_frm == 0) //200 OK
-				respone_size = snprintf(respone, 300, "HTTP/1.1 200 OK\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s;charset=%s\r\nAccept-Range: bytes\r\nContent-Length:%llu\r\n%s\r\n"
+				respone_size = snprintf(respone, 300, "HTTP/1.1 200 OK\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s; charset=%s\r\nAccept-Range: bytes\r\nContent-Length: %llu\r\n%s\r\n"
 										, szDate, content_type, tw_conf->charset, filet->fsize, ext_heads);
 			else //206 Partial Content
-				respone_size = snprintf(respone, 300, "HTTP/1.1 206 Partial Content\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s;charset=%s\r\nAccept-Range: bytes\r\nContent-Range: %lld-%lld/%llu\r\nContent-Length:%llu\r\n%s\r\n"
+				respone_size = snprintf(respone, 300, "HTTP/1.1 206 Partial Content\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s; charset=%s\r\nAccept-Range: bytes\r\nContent-Range: %lld-%lld/%llu\r\nContent-Length: %llu\r\n%s\r\n"
 										, szDate, content_type, tw_conf->charset, heads->Range_frm, heads->Range_to, filet->fsize, filet->lsize, ext_heads);
 			tw_send_data(client, respone, respone_size, 0, 1);
 		}
@@ -696,9 +696,9 @@ static void on_read_websocket(uv_stream_t* client, char* data, size_t Len) {
 					int errcode = (hd->buf.data[0] << 8) + hd->buf.data[1];
 					char errstr[60] = { 0 };
 					if (hd->buf.size > 2)
-						snprintf(errstr, 59, "wserr:%d %s", errcode, hd->buf.data + 2);
+						snprintf(errstr, 59, "wserr: %d %s", errcode, hd->buf.data + 2);
 					else
-						snprintf(errstr, 59, "wserr:%d", errcode);
+						snprintf(errstr, 59, "wserr: %d", errcode);
 					if (tw_conf->on_error) //出错信息回调
 						tw_conf->on_error(tw_conf->udata, client, &clidata->pa, 0, errstr);
 					else
@@ -798,12 +798,12 @@ static void on_uv_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) 
 		if (nread != UV_EOF) {
 			if (tw_conf->on_error) {
 				char errstr[60] = { 0 };
-				snprintf(errstr, 59, "%d:%s,%s", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
+				snprintf(errstr, 59, "%d: %s,%s", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
 				//出错信息回调
 				tw_conf->on_error(tw_conf->udata, client, &clidata->pa, nread, errstr);
 			}
 			else
-				fprintf(stderr, "%d:%s,%s\n", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
+				fprintf(stderr, "%d:  %s,%s\n", (int)nread, uv_err_name((int)nread), uv_strerror((int)nread));
 		}
 		//关闭连接. 读取长度为0,或是错误值,都应该关闭连接
 		tw_close_client(client);
@@ -898,13 +898,13 @@ static void tw_on_connection(uv_stream_t* server, int status) {
 //TinyWeb 线程开始运行
 static void tw_run(uv_loop_t* loop) {
 	tw_config* tw_conf = (tw_config*)loop->data;
-	printf("TinyWeb v1.3.0 is started, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
+	printf("TinyWeb v1.3.0 is started, listening on %s: %d\n", tw_conf->ip, tw_conf->port);
 	uv_run(loop, UV_RUN_DEFAULT);
 	uv_stop(loop);
 	if (!uv_loop_close(loop) && loop != uv_default_loop()) {
 		uv_loop_delete(loop);
 	}
-	printf("TinyWeb v1.3.0 is stopped, listening on %s:%d\n", tw_conf->ip, tw_conf->port);
+	printf("TinyWeb v1.3.0 is stopped, listening on %s: %d\n", tw_conf->ip, tw_conf->port);
 	free(tw_conf->doc_dir);
 	free(tw_conf->doc_index);
 	free(tw_conf->charset);
@@ -931,7 +931,7 @@ int tinyweb_start(uv_loop_t* loop, tw_config* conf) {
 	else
 		tw_conf->doc_dir = strdup("./");
 
-	printf("WebRoot port:%d  Dir:%s\n", tw_conf->port, tw_conf->doc_dir);
+	printf("WebRoot port: %d  Dir: %s\n", tw_conf->port, tw_conf->doc_dir);
 	//设置默认主页（分号间隔）
 	if (conf->doc_index && strcmpi(conf->doc_index, "") != 0)
 		tw_conf->doc_index = strdup(conf->doc_index);
