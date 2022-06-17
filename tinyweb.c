@@ -198,7 +198,7 @@ char* tw_format_http_respone(uv_stream_t* client, const char* status, const char
 		content_length = content ? strlen(content) : 0;
 	totalsize = strlen(status) + strlen(ext_heads) + strlen(content_type) + content_length + 158;
 	respone = (char*)malloc(totalsize + 1);
-	header_size = snprintf(respone, totalsize, "HTTP/1.1 %s\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type:%s; charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
+	header_size = snprintf(respone, totalsize, "HTTP/1.1 %s\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s; charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
 						   , status, szDate, content_type, tw_conf->charset, content_length, ext_heads);
 	assert(header_size > 0);
 	if (content_length)
@@ -228,7 +228,7 @@ void tw_301_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 301 Moved Permanently\r\nDate: %s\r\n"
 			 "Server: TinyWeb v1.3.0\r\nLocation: http://%s%s%s%s\r\nConnection: close\r\n"
-			 "Content-Type:text/html;charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
+			 "Content-Type: text/html;charset=%s\r\nContent-Length:%zd\r\n%s\r\n"
 			 "<h1>Moved Permanently</h1><p>The document has moved <a href=\"%s%s%s\">here</a>.</p>"
 			 , szDate
 			 , heads->host, heads->path, (heads->query[0] ? "?" : ""), (heads->query[0] ? heads->query : "")
@@ -245,7 +245,7 @@ void tw_302_Moved(uv_stream_t* client, tw_reqHeads* heads, const char* ext_heads
 	tw_config* tw_conf = (tw_config*)(client->loop->data);
 	snprintf(buffer, sizeof(buffer), "HTTP/1.1 302 Moved Temporarily\r\nDate: %s\r\n"
 			 "Server: TinyWeb v1.3.0\r\nLocation: http://%s%s%s%s\r\nConnection: close\r\n"
-			 "Content-Type:text/html;charset=%s\r\nContent-Length:0\r\n%s\r\n"
+			 "Content-Type: text/html;charset=%s\r\nContent-Length:0\r\n%s\r\n"
 			 , szDate
 			 , heads->host, heads->path, (heads->query[0] ? "?" : ""), (heads->query[0] ? heads->query : "")
 			 , tw_conf->charset, ext_heads);
@@ -292,10 +292,10 @@ void tw_http_send_file(uv_stream_t* client, tw_reqHeads* heads, const char* ext_
 			respone = (char*)malloc(300 + 1);
 			int respone_size;
 			if (heads->Range_frm == 0) //200 OK
-				respone_size = snprintf(respone, 300, "HTTP/1.1 200 OK\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Length:%llu\r\n%s\r\n"
+				respone_size = snprintf(respone, 300, "HTTP/1.1 200 OK\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s;charset=%s\r\nAccept-Range: bytes\r\nContent-Length:%llu\r\n%s\r\n"
 										, szDate, content_type, tw_conf->charset, filet->fsize, ext_heads);
 			else //206 Partial Content
-				respone_size = snprintf(respone, 300, "HTTP/1.1 206 Partial Content\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type:%s;charset=%s\r\nAccept-Range: bytes\r\nContent-Range: %lld-%lld/%llu\r\nContent-Length:%llu\r\n%s\r\n"
+				respone_size = snprintf(respone, 300, "HTTP/1.1 206 Partial Content\r\nDate: %s\r\nServer: TinyWeb v1.3.0\r\nConnection: close\r\nContent-Type: %s;charset=%s\r\nAccept-Range: bytes\r\nContent-Range: %lld-%lld/%llu\r\nContent-Length:%llu\r\n%s\r\n"
 										, szDate, content_type, tw_conf->charset, heads->Range_frm, heads->Range_to, filet->fsize, filet->lsize, ext_heads);
 			tw_send_data(client, respone, respone_size, 0, 1);
 		}
