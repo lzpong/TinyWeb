@@ -971,7 +971,9 @@ void tinyweb_stop(uv_loop_t* loop) {
 	if (loop == NULL)
 		loop = uv_default_loop();
 	uv_stop(loop);
-	if (loop->data)
+	if (loop->data){
 		uv_close((uv_handle_t*)&((tw_config*)loop->data)->_server, on_close_cb);
+		free(loop->data);
+	}
 	uv_loop_close(loop);
 }
