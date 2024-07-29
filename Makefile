@@ -2,8 +2,9 @@ PWD=$(shell pwd)
 
 INCS=
 LIBEDIT_DIR=
+
 DEBUG=-g -ggdb -gstabs+
-BASE_FLAGS=$(INCS) $(DEBUG) $(LIBEDIT_DIR) -lpthread #-fPIC
+BASE_FLAGS=-I$(INCS) $(DEBUG) -L$(LIBEDIT_DIR) -lpthread #-fPIC
 LDFLAGS=-L.
 
 CC_CFLAGS=$(BASE_FLAGS) #-Wl,-rpath=/usr/local/lib/
@@ -21,16 +22,15 @@ CXX=g++
 
 all: tinyweb
 
-
-tinyweb: tools.o tinyweb.o Main.o  libuv.a
-	$(CC) $(CC_CFLAGS) $(CFLAGS) -o tinyweb Main.o tinyweb.o tools.o  -lrt libuv.a
+tinyweb:  Main.o  tinyweb.a 
+	$(CC) $(CC_CFLAGS) $(CFLAGS) -o tinyweb Main.o tinyweb.a  -lrt -l:libuv.a
 	@echo make tinyweb done.
 
+tinyweb.a: tools.o tinyweb.o 
+	ar crv tinyweb.a  tools.o tinyweb.o
 
-
-libuv.a:
-	cp /usr/local/lib/libuv.a ./
-
+tinyweb.a: tools.o tinyweb.o 
+	ar crv $@ $^
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CC_CFLAGS) $(CFLAGS) -c $< -o $@

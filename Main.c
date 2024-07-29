@@ -111,7 +111,7 @@ char on_request(void* data, uv_stream_t* client, tw_peerAddr* pa, tw_reqHeads* h
 	else if (cmpi(heads->path, "/gettype")){
 		//动态返回内容
 		char* str="{\"type\":\"UTF-8 string\"}";
-		tw_send_200_OK(client, nullptr, "application/json", str, strlen(str), 0);
+		tw_send_200_OK(client, NULL, "application/json", str, strlen(str), 0);
 		return 1;//已处理请求
 	}
 	return 0;//返回0表示未处理,TinyWeb 继续处理
@@ -165,19 +165,19 @@ char on_socket_data(void* data, uv_stream_t* client, tw_peerAddr* pa, membuf_t* 
 
 char on_close(void* data, uv_stream_t* client, tw_peerAddr* pa)
 {
-	printf("closed: sk=%zd [%s:%d]  from:%s:%d    cli:%d\n", pa->sk, pa->ip, pa->port, pa->fip, pa->fport, client->loop->active_tcp_streams);
+	printf("closed: sk=%zd [%s:%d]  from:%s:%d    cli:%d\n", pa->sk, pa->ip, pa->port, pa->fip, pa->fport, client->loop->active_handles);
 	return 0;
 }
 
 char on_error(void* data, uv_stream_t* client, tw_peerAddr* pa, int errcode, char* errstr)
 {
-	printf("error: sk=%zd [%s:%d]  from:%s:%d    cli:%d   %s\n", pa->sk, pa->ip, pa->port, pa->fip, pa->fport, client->loop->active_tcp_streams,errstr);
+	printf("error: sk=%zd [%s:%d]  from:%s:%d    cli:%d   %s\n", pa->sk, pa->ip, pa->port, pa->fip, pa->fport, client->loop->active_handles, errstr);
 	return 0;
 }
 
 char on_connect(void* data, uv_stream_t* client, tw_peerAddr* pa)
 {
-	printf("connected: sk=%zd [%s:%d]  from:%s:%d    cli:%d\n",pa->sk,pa->ip,pa->port,pa->fip,pa->fport, client->loop->active_tcp_streams);
+	printf("connected: sk=%zd [%s:%d]  from:%s:%d    cli:%d\n",pa->sk,pa->ip,pa->port,pa->fip,pa->fport, client->loop->active_handles);
 	return 0;
 }
 const char* help = 
@@ -225,13 +225,13 @@ int main(int argc, char** argv)
 	char cmd[11];
 	if (argc < 5) { //cmd: "", "dir", "port", "-d dir", "-p port"
 		for (i = 1; i < argc;) {
-			if (strcmpi(argv[i], "-d") == 0) {
+			if (strcmp(argv[i], "-d") == 0) {
 				if (++i < argc)
 					dir = argv[i++];
 				else
 					return printf("need dir\n%s", help), 0;
 			}
-			if (i < argc && strcmpi(argv[i], "-p") == 0) {
+			if (i < argc && strcmp(argv[i], "-p") == 0) {
 				if ( ++i < argc)
 					port = atoi(argv[i++]);
 				else
@@ -252,15 +252,15 @@ int main(int argc, char** argv)
 		{
 			port = 0;
 			dir = NULL;
-			if (strcmpi(argv[i], "-d") == 0 && ++i < argc)
+			if (strcmp(argv[i], "-d") == 0 && ++i < argc)
 				dir = argv[i++];
-			else if (strcmpi(argv[i], "-p") == 0 && ++i < argc)
+			else if (strcmp(argv[i], "-p") == 0 && ++i < argc)
 				port = atoi(argv[i++]);
 			else
 				return printf(help), 0;
-			if (strcmpi(argv[i], "-d") == 0 && ++i < argc)
+			if (strcmp(argv[i], "-d") == 0 && ++i < argc)
 				dir = argv[i++];
-			else if (strcmpi(argv[i], "-p") == 0 && ++i < argc)
+			else if (strcmp(argv[i], "-p") == 0 && ++i < argc)
 				port = atoi(argv[i++]);
 			else
 				return printf(help), 0;
@@ -273,7 +273,7 @@ int main(int argc, char** argv)
 	//
 	while (1) {
 		fgets(cmd, 10, stdin);//the 'gets' function is dangerous and should not be used
-		if (strcmpi(cmd, "Q\n") == 0 || strcmpi(cmd, "exit\n") == 0)
+		if (strcmp(cmd, "Q\n") == 0 || strcmp(cmd, "exit\n") == 0)
 			break;
 	}
 	//tinyweb_stop(loop);
